@@ -391,13 +391,26 @@
                 setMessageType('');
                 setShowModal(false);
 
-                // Form validation
-                for (const key in formData) {
-                    if (key !== 'attachment' && formData[key] === '') {
+                // Form validation for all required fields
+                const requiredFields = [
+                    'fullName', 'position', 'phoneNumber', 'department', 'carType',
+                    'startDate', 'startTime', 'endDate', 'endTime', 'numTeachers',
+                    'numStudents', 'distance', 'driverOption', 'destination'
+                ];
+
+                for (const field of requiredFields) {
+                    if (formData[field] === '') {
                         showMessage('กรุณากรอกข้อมูลให้ครบถ้วนก่อนส่ง ⚠️', 'error');
                         setIsLoading(false);
                         return;
                     }
+                }
+
+                // **NEW VALIDATION: Check for attachment**
+                if (!formData.attachment) {
+                    showMessage('กรุณาแนบเอกสารประกอบก่อนส่งคำขอ 📎⚠️', 'error');
+                    setIsLoading(false);
+                    return;
                 }
 
                 // Date/Time validation
@@ -427,64 +440,15 @@
                     }
                 }
 
-                // Handle file upload
-                if (formData.attachment) {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                        const base64Data = event.target.result.split(',')[1]; // Get base64 string
-                        dataToSend.append('attachmentData', base64Data);
-                        dataToSend.append('attachmentName', formData.attachment.name);
+                // Handle file upload (already validated as present)
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const base64Data = event.target.result.split(',')[1]; // Get base64 string
+                    dataToSend.append('attachmentData', base64Data);
+                    dataToSend.append('attachmentName', formData.attachment.name);
 
-                        try {
-                            // Send data to Google App Script
-                            const response = await fetch(SCRIPT_URL, {
-                                method: 'POST',
-                                body: dataToSend,
-                            });
-
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-
-                            const result = await response.json();
-                            if (result.success) {
-                                showMessage('การจองรถสำเร็จ! ✅', 'success');
-                                // Clear form after successful submission
-                                setFormData({
-                                    fullName: '',
-                                    position: 'ข้าราชการครู',
-                                    phoneNumber: '',
-                                    department: 'วิชาการ',
-                                    carType: 'รถตู้ใหม่ นจ1491',
-                                    startDate: '',
-                                    startTime: '',
-                                    endDate: '',
-                                    endTime: '',
-                                    numTeachers: '',
-                                    numStudents: '',
-                                    distance: '',
-                                    driverOption: 'พนักงานขับรถ',
-                                    destination: '',
-                                    attachment: null,
-                                });
-                                if (fileInputRef.current) {
-                                    fileInputRef.current.value = ''; // Clear file input
-                                }
-                                fetchBookings(); // Refresh bookings to update calendar/stats
-                            } else {
-                                showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
-                            }
-                        } catch (error) {
-                            console.error('Error submitting form:', error);
-                            showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล 🤯', 'error');
-                        } finally {
-                            setIsLoading(false);
-                        }
-                    };
-                    reader.readAsDataURL(formData.attachment); // Read file as base64
-                } else {
-                    // If no attachment, just send other data
                     try {
+                        // Send data to Google App Script
                         const response = await fetch(SCRIPT_URL, {
                             method: 'POST',
                             body: dataToSend,
@@ -497,6 +461,7 @@
                         const result = await response.json();
                         if (result.success) {
                             showMessage('การจองรถสำเร็จ! ✅', 'success');
+                            // Clear form after successful submission
                             setFormData({
                                 fullName: '',
                                 position: 'ข้าราชการครู',
@@ -515,9 +480,9 @@
                                 attachment: null,
                             });
                             if (fileInputRef.current) {
-                                fileInputRef.current.value = '';
+                                fileInputRef.current.value = ''; // Clear file input
                             }
-                            fetchBookings();
+                            fetchBookings(); // Refresh bookings to update calendar/stats
                         } else {
                             showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
                         }
@@ -527,7 +492,8 @@
                     } finally {
                         setIsLoading(false);
                     }
-                }
+                };
+                reader.readAsDataURL(formData.attachment); // Read file as base64
             };
 
             // Calendar logic
@@ -865,7 +831,7 @@
                         {/* Tab 1: Car Request Form */}
                         {activeTab === 'request' && (
                             <form onSubmit={handleSubmit} className="space-y-6">
-                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">แบบฟอร์มขออนุมัติใช้รถไปราชการ 📝</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">แบบฟอร์มขออนุมัติใช้รถราชการ 📝</h2>
 
                                 {/* General Info */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1090,7 +1056,7 @@
 
                                 {/* Attachment */}
                                 <div>
-                                    <label htmlFor="attachment" className="block text-gray-700 font-medium mb-1">เอกสารประกอบ (รูปภาพ/PDF) 📎</label>
+                                    <label htmlFor="attachment" className="block text-gray-700 font-medium mb-1">เอกสารประกอบ (รูปภาพ/PDF) 📎<span className="text-red-500">*</span></label>
                                     <input
                                         type="file"
                                         id="attachment"
@@ -1099,10 +1065,11 @@
                                         onChange={handleChange}
                                         ref={fileInputRef}
                                         className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-100 file:text-red-700 hover:file:bg-red-200"
+                                        required // Added required attribute here for HTML5 validation, but JS validation is also needed for custom messages
                                     />
                                     {formData.attachment && (
-                                        <p className="text-sm text-gray-500 mt-2">ไฟล์ที่เลือก: {formData.attachment.name}</p>
-                                    )}
+                                        <p className="text-sm text-gray-500 mt-2">ไฟล์ที่เลือก: {formData.attachment.name}</p> 
+                                                                   )}
                                 </div>
 
                                 {/* Submit Button */}
