@@ -1346,10 +1346,10 @@
                                         <br />
                                         <p>เนื่องด้วย <span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span> ตำแหน่ง <span className="font-semibold">{memoData['ตำแหน่ง']}</span>
                                             กลุ่มงาน/กลุ่มสาระฯ <span className="font-semibold">{memoData['กลุ่มงาน/กลุ่มสาระฯ']}</span> เบอร์โทรศัพท์ <span className="font-semibold">{memoData['เบอร์โทร']}</span>
-                                            มีความประสงค์ขอใช้รถไปราชการประเภท <span className="font-semibold">{memoData['รถที่ต้องการใช้']}</span> เพื่อไป 
-                                            <span className="font-semibold"> {memoData['สถานที่ไป']}</span></p>
-                                        <p>จำนวนครู <span className="font-semibold">{memoData['จำนวนครู']}</span> คน, จำนวนนักเรียน <span className="font-semibold">{memoData['จำนวนนักเรียน']}</span> คน</p>
-                                        <p>ในระหว่างวันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่เริ่ม'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาเริ่มต้น'])}</span> ถึง
+                                            มีความประสงค์ขอใช้รถไปราชการประเภท <span className="font-semibold">{memoData['รถที่ต้องการใช้']}</span> โดยเดินทางไป 
+                                            <span className="font-semibold"> {memoData['สถานที่ไป']}</span>
+                                        จำนวนครู <span className="font-semibold">{memoData['จำนวนครู']}</span> คน, จำนวนนักเรียน <span className="font-semibold">{memoData['จำนวนนักเรียน']}</span> คน
+                                        ในระหว่างวันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่เริ่ม'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาเริ่มต้น'])}</span> ถึง
                                             วันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่สิ้นสุด'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาสิ้นสุด'])}</span>
                                             ระยะทางไปกลับประมาณ <span className="font-semibold">{memoData['ระยะทางไปกลับ (กิโลเมตร)']}</span> กิโลเมตร
                                             โดยมีผู้ขับขี่คือ <span className="font-semibold">{memoData['ขับขี่โดย']}</span>
@@ -1359,6 +1359,7 @@
                                         <p>จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>
                                         <br /><br /> {/* Added two more line breaks here */}
                                         <p className="text-center">ขอแสดงความนับถือ</p> 
+                                        <br /><br /> {/* Added two more line breaks here */}
                                         <p className="text-center font-semibold mt-4">(<span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span>)</p>
                                         <p className="text-center">ตำแหน่ง {memoData['ตำแหน่ง']}</p>
                                     </div>
