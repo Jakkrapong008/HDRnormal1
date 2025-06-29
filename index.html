@@ -737,6 +737,11 @@
                                 const x2 = 100 + 90 * Math.cos(Math.PI * endAngle / 180);
                                 const y2 = 100 + 90 * Math.sin(Math.PI * endAngle / 180);
 
+                                // Calculate the midpoint of the arc for label positioning
+                                const midAngle = startAngle + (endAngle - startAngle) / 2;
+                                const labelX = 100 + 70 * Math.cos(Math.PI * midAngle / 180);
+                                const labelY = 100 + 70 * Math.sin(Math.PI * midAngle / 180);
+
                                 const d = [
                                     `M 100,100`,
                                     `L ${x1},${y1}`,
@@ -746,22 +751,30 @@
 
                                 startAngle = endAngle;
 
+                                // Calculate percentage for the hovered slice
+                                const percentage = total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0;
+                                
                                 return (
                                     <React.Fragment key={`pie-slice-${index}`}>
                                         <path
                                             d={d}
                                             fill={COLORS[index % COLORS.length]}
-                                            onMouseEnter={() => setHoveredEntry(entry)}
+                                            onMouseEnter={() => setHoveredEntry({ ...entry, percentage: percentage })}
                                             onMouseLeave={() => setHoveredEntry(null)}
                                             style={{ transition: 'fill 0.2s ease-in-out', cursor: 'pointer' }}
                                         />
                                     </React.Fragment>
                                 );
                             })}
-                             {/* Display hovered value in the center */}
+                             {/* Display hovered name and percentage in the center */}
                             {hoveredEntry && (
-                                <text x="100" y="100" textAnchor="middle" alignmentBaseline="middle" fontSize="18" fontWeight="bold" fill="#333">
-                                    {hoveredEntry.value}
+                                <text x="100" y="90" textAnchor="middle" alignmentBaseline="middle" fontSize="14" fontWeight="bold" fill="#333">
+                                    {hoveredEntry.name}
+                                </text>
+                            )}
+                            {hoveredEntry && (
+                                <text x="100" y="115" textAnchor="middle" alignmentBaseline="middle" fontSize="16" fontWeight="bold" fill="#333">
+                                    {`${hoveredEntry.percentage}%`}
                                 </text>
                             )}
                         </svg>
@@ -1344,7 +1357,7 @@
                                         
                                         <br />
                                         <p>จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>
-                                        <br />
+                                        <br /><br /> {/* Added two more line breaks here */}
                                         <p className="text-center">ขอแสดงความนับถือ</p> 
                                         <p className="text-center font-semibold mt-4">(<span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span>)</p>
                                         <p className="text-center">ตำแหน่ง {memoData['ตำแหน่ง']}</p>
