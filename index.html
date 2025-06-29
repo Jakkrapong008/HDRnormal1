@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Sarabun', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 15px;
+    }
+    header img {
+      width: 60px; /* Adjust logo size */
+      height: auto;
+      margin-right: 15px;
+      border-radius: 5px; /* Rounded corners for logo */
+    }
+    h1 {
+      font-weight: bold;
+      color: #D32F2F; /* Darker red for main title */
+      margin: 0;
+      font-size: 2.5em;
+    }
+    h2 {
+      font-size: 1.2em;
+      color: #555;
+      margin-top: 5px;
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #eee;
+      flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
+    }
+    .tab-button {
+      padding: 12px 20px;
+      cursor: pointer;
+      border: none;
+      background-color: transparent;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 1.1em;
+      color: #777;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+      border-radius: 5px 5px 0 0; /* Rounded top corners for tabs */
+      white-space: nowrap; /* Prevent text wrapping inside buttons */
+      margin-right: 5px; /* Space between buttons */
+      margin-bottom: 5px; /* Space for wrapped buttons */
+    }
+    .tab-button.active {
+      color: #D32F2F;
+      border-bottom-color: #D32F2F;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+      padding: 20px 0;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #444;
+    }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="date"],
+    .form-group input[type="time"],
+    .form-group select,
+    .form-group textarea {
+      width: calc(100% - 22px);
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 1em;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+    }
+    .form-group input[type="text"]:focus,
+    .form-group input[type="number"]:focus,
+    .form-group input[type="date"]:focus,
+    .form-group input[type="time"]:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      border-color: #FFC0CB; /* Pastel red for focus */
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(255, 192, 203, 0.5);
+    }
+    .form-group input[type="radio"] {
+      margin-right: 5px;
+    }
+    .radio-group label {
+      display: inline-block;
+      margin-right: 20px;
+    }
+    button {
+      background-color: #D32F2F; /* Darker red for button */
+      color: white;
+      padding: 12px 25px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 1.1em;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      margin-top: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    button:hover {
+      background-color: #EF5350; /* Slightly lighter red on hover */
+      transform: translateY(-2px);
+    }
+    .message {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: bold;
+      animation: fadeIn 0.5s;
+    }
+    .message.success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .message.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    /* Calendar styles */
+    .calendar-container {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .calendar-header button {
+      background-color: #FFC0CB;
+      color: #333;
+      padding: 8px 15px;
+    }
+    .calendar-header button:hover {
+      background-color: #FFB3C0;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+    .day-name {
+      font-weight: bold;
+      padding: 10px;
+      background-color: #eee;
+      border-radius: 5px;
+    }
+    .calendar-day {
+      padding: 15px 5px;
+      min-height: 80px;
+      border: 1px solid #eee;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      cursor: pointer;
+      position: relative;
+      background-color: #fff;
+      transition: background-color 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .calendar-day:hover {
+      background-color: #f0f0f0;
+    }
+    .calendar-day.has-booking {
+      background-color: #FFC0CB; /* Pastel red highlight */
+      color: #333;
+      font-weight: bold;
+    }
+    .calendar-day.has-booking:hover {
+        background-color: #FFB3C0;
+    }
+    .calendar-day.current-month {
+        opacity: 1;
+    }
+    .calendar-day.other-month {
+        opacity: 0.5;
+        cursor: default;
+    }
+    .day-number {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .booking-count {
+      font-size: 0.8em;
+      color: #555;
+    }
+
+    /* Modal for booking details */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+      animation: fadeIn 0.3s ease-out;
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 30px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 600px;
+      border-radius: 8px;
+      position: relative;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      animation: slideIn 0.3s ease-out;
+    }
+    .close-button {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close-button:hover,
+    .close-button:focus {
+      color: #000;
+      text-decoration: none;
+    }
+    .modal-body p {
+        margin-bottom: 8px;
+    }
+    .modal-body strong {
+        color: #D32F2F;
+    }
+
+    /* Statistics styles */
+    .stats-container {
+      padding: 20px;
+    }
+    .stats-section {
+      margin-bottom: 30px;
+      background-color: #fefefe;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .chart-container {
+      width: 100%;
+      max-width: 600px;
+      margin: 20px auto;
+      display: flex;
+      justify-content: center;
+    }
+    canvas {
+      width: 100% !important;
+      height: auto !important;
+    }
+
+    /* Memo Tab Table Styles */
+    .memo-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .memo-table th, .memo-table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    .memo-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+      color: #555;
+    }
+    .memo-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    .memo-table tr:hover {
+      background-color: #f0f0f0;
+    }
+    .memo-table button {
+        margin: 0;
+        padding: 5px 10px;
+        font-size: 0.9em;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding: 20px;
+      color: #777;
+      font-size: 0.9em;
+      border-top: 1px solid #eee;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes slideIn {
+        from { transform: translateY(-20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .container {
+        margin: 10px;
+        padding: 15px;
+      }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      header img {
+        margin-bottom: 10px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+      h2 {
+        font-size: 1em;
+      }
+      .tabs {
+        flex-direction: column;
+      }
+      .tab-button {
+        width: 100%;
+        text-align: left;
+        margin-bottom: 5px;
+      }
+      .calendar-grid {
+        grid-template-columns: repeat(7, 1fr); /* Keep 7 columns */
+        font-size: 0.8em;
+      }
+      .calendar-day {
+        min-height: 60px;
+        padding: 10px 2px;
+      }
+      .day-number {
+        font-size: 1em;
+      }
+      .booking-count {
+        font-size: 0.7em;
+      }
+      .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 15px;
+      }
+      .memo-table th, .memo-table td {
+        padding: 5px;
+        font-size: 0.8em;
+      }
+      .memo-table button {
+        padding: 3px 6px;
+        font-size: 0.7em;
+      }
+    }
+
+    /* Styles for the print memo page */
+    @media print {
+        body {
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #000;
+        }
+        .print-container {
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            box-shadow: none;
+            border: none;
+        }
+        .print-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .print-header h1 {
+            font-size: 2em;
+            margin-bottom: 5px;
+            color: #000;
+        }
+        .print-header p {
+            font-size: 1.1em;
+            margin: 0;
+        }
+        .print-details p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .print-details strong {
+            display: inline-block;
+            min-width: 120px; /* Align labels */
+            color: #333;
+        }
+        .print-button-container {
+            display: none; /* Hide print button when printing */
+        }
+        /* Hide all other elements not needed for print */
+        .container, .tabs, footer {
+            display: none;
+        }
+        .modal, .form-group button {
+            display: none;
+        }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="https://img2.pic.in.th/pic/logo-HDR.md.png" alt="โลโก้โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์">
+      <div>
+        <h1>ระบบขออนุมัติใช้รถไปราชการ 🚗</h1>
+        <h2>โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</h2>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-button active" onclick="openTab(event, 'bookingForm')">กรอกข้อมูลจองรถ 📝</button>
+      <button class="tab-button" onclick="openTab(event, 'bookingCalendar')">ตารางแสดงการจองรถ 🗓️</button>
+      <button class="tab-button" onclick="openTab(event, 'usageStatistics')">สถิติการใช้รถ 📊</button>
+      <button class="tab-button" onclick="openTab(event, 'printMemoTab')">พิมพ์บันทึกข้อความ 📄</button>
+    </div>
+
+    <!-- Tab 1: Booking Form -->
+    <div id="bookingForm" class="tab-content active">
+      <form id="carBookingForm">
+        <div class="form-group">
+          <label for="fullName">ชื่อ-สกุล ผู้จอง <span style="color: red;">*</span></label>
+          <input type="text" id="fullName" name="fullName" required>
+        </div>
+        <!-- NEW FIELD: ตำแหน่ง -->
+        <div class="form-group">
+          <label for="position">ตำแหน่ง <span style="color: red;">*</span></label>
+          <select id="position" name="position" required>
+            <option value="">เลือกตำแหน่ง</option>
+            <option value="ข้าราชการครู">ข้าราชการครู</option>
+            <option value="พนักงานราชการ">พนักงานราชการ</option>
+            <option value="ครูอัตราจ้าง">ครูอัตราจ้าง</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+        <!-- END NEW FIELD -->
+        <div class="form-group">
+          <label for="phone">เบอร์โทร <span style="color: red;">*</span></label>
+          <input type="text" id="phone" name="phone" required>
+        </div>
+        <div class="form-group">
+          <label for="department">กลุ่มงาน/กลุ่มสาระฯ <span style="color: red;">*</span></label>
+          <select id="department" name="department" required>
+            <option value="">เลือกกลุ่มงาน/กลุ่มสาระฯ</option>
+            <option value="วิชาการ">วิชาการ</option>
+            <option value="กิจการ">กิจการ</option>
+            <option value="บริหารทั่วไป">บริหารทั่วไป</option>
+            <option value="บุคคล">บุคคล</option>
+            <option value="ธุรการ">ธุรการ</option>
+            <option value="งบประมาณ">งบประมาณ</option>
+            <option value="แผนงาน">แผนงาน</option>
+            <option value="ภาษาไทย">ภาษาไทย</option>
+            <option value="ศิลปะ">ศิลปะ</option>
+            <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+            <option value="สุขศึกษาและพลศึกษา">สุขศึกษาและพลศึกษา</option>
+            <option value="วิทยาศาสตร์และเทคโนโลยี">วิทยาศาสตร์และเทคโนโลยี</option>
+            <option value="สังคมศึกษาศาสนาและวัฒนธรรม">สังคมศึกษาศาสนาและวัฒนธรรม</option>
+            <option value="การงานอาชีพ">การงานอาชีพ</option>
+            <option value="ภาษาต่างประเทศ">ภาษาต่างประเทศ</option>
+            <option value="อื่น ๆ">อื่น ๆ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="carUsed">รถที่ต้องการใช้ <span style="color: red;">*</span></label>
+          <select id="carUsed" name="carUsed" required>
+            <option value="">เลือกรถที่ต้องการใช้</option>
+            <option value="รถตู้ใหม่ นจ1491">รถตู้ใหม่ นจ1491</option>
+            <option value="รถตู้เก่า นง4729">รถตู้เก่า นง4729</option>
+            <option value="รถกะบะ นจ1093">รถกะบะ นจ1093</option>
+            <option value="รถบรรทุก 6 ล้อ 40-0431">รถบรรทุก 6 ล้อ 40-0431</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="startDate">วันที่เริ่ม <span style="color: red;">*</span></label>
+          <input type="date" id="startDate" name="startDate" required>
+        </div>
+        <div class="form-group">
+          <label for="startTime">เวลาเริ่มต้น <span style="color: red;">*</span></label>
+          <input type="time" id="startTime" name="startTime" required>
+        </div>
+        <div class="form-group">
+          <label for="endDate">วันที่สิ้นสุด <span style="color: red;">*</span></label>
+          <input type="date" id="endDate" name="endDate" required>
+        </div>
+        <div class="form-group">
+          <label for="endTime">เวลาสิ้นสุด <span style="color: red;">*</span></label>
+          <input type="time" id="endTime" name="endTime" required>
+        </div>
+        <div class="form-group">
+          <label for="numTeachers">จำนวนครู</label>
+          <input type="number" id="numTeachers" name="numTeachers" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label for="numStudents">จำนวนนักเรียน</label>
+          <input type="number" id="numStudents" name="numStudents" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label for="distance">ระยะทางไปกลับ (กิโลเมตร)</label>
+          <input type="number" id="distance" name="distance" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label>ขับขี่โดย <span style="color: red;">*</span></label>
+          <div class="radio-group">
+            <input type="radio" id="driverStaff" name="driver" value="พนักงานขับรถ" required>
+            <label for="driverStaff">พนักงานขับรถ</label>
+            <input type="radio" id="driverSelf" name="driver" value="ข้าพเจ้า">
+            <label for="driverSelf">ข้าพเจ้า</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="destination">สถานที่ไป <span style="color: red;">*</span></label>
+          <textarea id="destination" name="destination" rows="3" required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="attachment">เอกสารประกอบ (ไฟล์ภาพหรือ PDF) 📎</label>
+          <input type="file" id="attachment" name="attachment" accept="image/*,.pdf">
+        </div>
+        <button type="submit">ส่งคำขอจองรถ ✅</button>
+      </form>
+      <div id="formMessage" class="message" style="display: none;"></div>
+    </div>
+
+    <!-- Tab 2: Booking Calendar -->
+    <div id="bookingCalendar" class="tab-content">
+      <div class="calendar-container">
+        <div class="calendar-header">
+          <button id="prevMonth">◀️</button>
+          <h3 id="currentMonthYear"></h3>
+          <button id="nextMonth">▶️</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid">
+          <!-- Day names -->
+          <div class="day-name">อา</div>
+          <div class="day-name">จ</div>
+          <div class="day-name">อ</div>
+          <div class="day-name">พ</div>
+          <div class="day-name">พฤ</div>
+          <div class="day-name">ศ</div>
+          <div class="day-name">ส</div>
+          <!-- Days will be populated here by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for booking details -->
+    <div id="bookingModal" class="modal">
+      <div class="modal-content">
+        <span class="close-button" onclick="closeModal()">&times;</span>
+        <h3 id="modalDateTitle"></h3>
+        <div id="modalBookingDetails" class="modal-body">
+          <!-- Booking details will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Usage Statistics -->
+    <div id="usageStatistics" class="tab-content">
+      <div class="stats-container">
+        <div class="stats-section">
+          <h3>จำนวนวันใช้งานในแต่ละเดือน 📅</h3>
+          <div class="chart-container">
+            <canvas id="monthlyUsageChart"></canvas>
+          </div>
+        </div>
+        <div class="stats-section">
+          <h3>สรุปการจองรถตามกลุ่มงาน/กลุ่มสาระฯ 🧑‍🏫</h3>
+          <div class="chart-container">
+            <canvas id="departmentUsageChart"></canvas>
+          </div>
+        </div>
+        <div class="stats-section">
+          <h3>รถที่ถูกจองบ่อยที่สุด 🚗</h3>
+          <div class="chart-container">
+            <canvas id="carUsageChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Print Memo Tab -->
+    <div id="printMemoTab" class="tab-content">
+        <h2>ตารางข้อมูลการจองรถสำหรับพิมพ์บันทึกข้อความ 📄</h2>
+        <table class="memo-table">
+            <thead>
+                <tr>
+                    <th>ชื่อผู้จอง</th>
+                    <th>รถที่จอง</th>
+                    <th>วันที่เริ่ม</th>
+                    <th>บันทึกข้อความ</th>
+                </tr>
+            </thead>
+            <tbody id="memoTableBody">
+                <!-- Data will be loaded here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <footer>
+      จัดทำโดย กลุ่มงานบริหารทั่วไป โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์
+    </footer>
+  </div>
+
+  <!-- Chart.js library for graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Global variable to store all bookings
+    let allBookings = [];
+    let currentMonth = new Date();
+
+    // --- Tab Switching Logic ---
+    // Function to handle tab switching
+    function openTab(evt, tabName) {
+      // Hide all tab contents
+      var i, tabContent, tabButtons;
+      tabContent = document.getElementsByClassName("tab-content");
+      for (i = 0; i < tabContent.length; i++) {
+        tabContent[i].style.display = "none";
+      }
+      // Deactivate all tab buttons
+      tabButtons = document.getElementsByClassName("tab-button");
+      for (i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].className = tabButtons[i].className.replace(" active", "");
+      }
+      // Show the selected tab content and activate its button
+      document.getElementById(tabName).style.display = "block";
+      if (evt) { // Check if event is passed (i.e., not initial load)
+        evt.currentTarget.className += " active";
+      } else { // For initial load, activate the corresponding button
+        document.querySelector(`.tab-button[onclick*="${tabName}"]`).className += " active";
+      }
+
+
+      // Load data specifically for each tab when it's opened
+      if (tabName === 'bookingCalendar') {
+        loadBookingsAndRenderCalendar();
+      } else if (tabName === 'usageStatistics') {
+        loadBookingsAndRenderCharts();
+      } else if (tabName === 'printMemoTab') {
+          loadMemoTable(); // Load data for the new memo table
+      }
+    }
+
+    // --- Booking Form Logic ---
+    // Event listener for form submission
+    document.getElementById('carBookingForm').addEventListener('submit', function(e) {
+      e.preventDefault(); // Prevent default form submission
+      const form = e.target;
+      const formData = new FormData(form);
+      const bookingData = {};
+      let fileBlob = null;
+
+      // Populate bookingData object and handle file blob
+      for (let [key, value] of formData.entries()) {
+        if (key === 'attachment') {
+          if (value && value.size > 0) {
+            fileBlob = value; // Store the file blob for upload
+          }
+        } else {
+          bookingData[key] = value;
+        }
+      }
+
+      // Validate dates to ensure end date/time is not before or equal to start date/time
+      if (bookingData.startDate && bookingData.endDate && bookingData.startTime && bookingData.endTime) {
+          const startDateTime = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+          const endDateTime = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+
+          if (startDateTime >= endDateTime) {
+              showMessage('วันที่และเวลาสิ้นสุดต้องไม่ก่อนหรือเท่ากับวันที่และเวลาเริ่มต้น 📅🚫', 'error');
+              return; // Stop form submission
+          }
+      } else {
+          showMessage('กรุณากรอกวันที่และเวลาเริ่มต้น-สิ้นสุดให้ครบถ้วน 📅🚫', 'error');
+          return;
+      }
+
+      const messageDiv = document.getElementById('formMessage');
+      messageDiv.style.display = 'block';
+      messageDiv.className = 'message';
+      messageDiv.innerHTML = 'กำลังบันทึกข้อมูล... โปรดรอสักครู่ ⏳';
+
+      // **FIX: Added check for google.script.run availability**
+      if (typeof google !== 'undefined' && typeof google.script !== 'undefined' && typeof google.script.run !== 'undefined') {
+        // Call Google Apps Script function to save booking
+        google.script.run
+          .withSuccessHandler(function(response) {
+            if (response.success) {
+              showMessage(response.message, 'success');
+              form.reset(); // Clear form on successful submission
+              // Reload data for calendar and charts after a successful booking
+              loadBookingsAndRenderCalendar();
+              loadBookingsAndRenderCharts();
+              loadMemoTable(); // Also reload for memo table
+            } else {
+              showMessage(response.message, 'error');
+            }
+          })
+          .withFailureHandler(function(error) {
+            showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล: ' + error.message + ' 🚨', 'error');
+          })
+          .saveBooking(bookingData, fileBlob); // Pass booking data and file blob
+      } else {
+        showMessage('Error: เว็บแอปไม่ได้ทำงานในสภาพแวดล้อม Google Apps Script กรุณาเข้าถึงผ่าน URL ที่ Deploy แล้วเท่านั้น 🛑', 'error');
+        console.error('google.script.run is not defined. Ensure the HTML is served via Google Apps Script HtmlService.');
+      }
+    });
+
+    // Function to display messages to the user
+    function showMessage(msg, type) {
+      const messageDiv = document.getElementById('formMessage');
+      messageDiv.className = `message ${type}`;
+      messageDiv.innerHTML = msg;
+      messageDiv.style.display = 'block';
+      setTimeout(() => {
+        messageDiv.style.display = 'none'; // Hide message after 5 seconds
+      }, 5000);
+    }
+
+    // --- Calendar Logic ---
+    // Function to load booking data and render the calendar
+    function loadBookingsAndRenderCalendar() {
+      // **FIX: Added check for google.script.run availability**
+      if (typeof google !== 'undefined' && typeof google.script !== 'undefined' && typeof google.script.run !== 'undefined') {
+        google.script.run
+          .withSuccessHandler(function(bookings) {
+            allBookings = bookings; // Store all bookings globally
+            renderCalendar(currentMonth); // Render calendar with current month
+          })
+          .withFailureHandler(function(error) {
+            console.error("Failed to load bookings: ", error);
+          })
+          .getBookingData(); // Call Apps Script to get booking data
+      } else {
+        console.warn('google.script.run is not defined. Calendar data cannot be loaded.');
+      }
+    }
+
+    // Function to render the calendar for a given month
+    function renderCalendar(date) {
+      const calendarGrid = document.getElementById('calendarGrid');
+      const currentMonthYear = document.getElementById('currentMonthYear');
+      // Clear previous days and re-add day names header
+      calendarGrid.innerHTML = `
+        <div class="day-name">อา</div>
+        <div class="day-name">จ</div>
+        <div class="day-name">อ</div>
+        <div class="day-name">พ</div>
+        <div class="day-name">พฤ</div>
+        <div class="day-name">ศ</div>
+        <div class="day-name">ส</div>
+      `;
+
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      // Display current month and year in Thai locale
+      currentMonthYear.textContent = `${new Date(year, month).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}`;
+
+      const firstDayOfMonth = new Date(year, month, 1);
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+      const startDayOfWeek = firstDayOfMonth.getDay(); // 0 for Sunday, 1 for Monday, etc.
+
+      // Add empty cells for days before the first day of the month
+      for (let i = 0; i < startDayOfWeek; i++) {
+        const emptyDay = document.createElement('div');
+        emptyDay.classList.add('calendar-day', 'other-month');
+        calendarGrid.appendChild(emptyDay);
+      }
+
+      // Add days of the month to the calendar grid
+      for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+        const dayElement = document.createElement('div');
+        dayElement.classList.add('calendar-day', 'current-month');
+        // Store full date for easy access
+        dayElement.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        dayElement.innerHTML = `<div class="day-number">${day}</div>`;
+
+        // Filter bookings for the current day
+        const bookingsOnThisDay = allBookings.filter(b => {
+          // Ensure b['วันที่เริ่ม'] is treated as a date string for comparison
+          const bookingDate = new Date(b['วันที่เริ่ม']); // Date string in ISO format (YYYY-MM-DD)
+          return bookingDate.getDate() === day && bookingDate.getMonth() === month && bookingDate.getFullYear() === year;
+        });
+
+        // If there are bookings, highlight the day and add booking count
+        if (bookingsOnThisDay.length > 0) {
+          dayElement.classList.add('has-booking');
+          const bookingCount = document.createElement('div');
+          bookingCount.classList.add('booking-count');
+          bookingCount.textContent = `${bookingsOnThisDay.length} รายการ`;
+          dayElement.appendChild(bookingCount);
+          // Add click listener to show details for days with bookings
+          dayElement.addEventListener('click', () => showBookingDetails(dayElement.dataset.date, bookingsOnThisDay));
+        } else {
+            dayElement.style.cursor = 'default'; // No bookings, not clickable
+        }
+        calendarGrid.appendChild(dayElement);
+      }
+    }
+
+    // Event listeners for navigating months
+    document.getElementById('prevMonth').addEventListener('click', () => {
+      currentMonth.setMonth(currentMonth.getMonth() - 1);
+      renderCalendar(currentMonth);
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+      renderCalendar(currentMonth);
+    });
+
+    // --- Modal for Booking Details ---
+    const bookingModal = document.getElementById('bookingModal');
+    const modalDateTitle = document.getElementById('modalDateTitle');
+    const modalBookingDetails = document.getElementById('modalBookingDetails');
+
+    // Function to display booking details in a modal
+    function showBookingDetails(dateString, bookings) {
+        modalDateTitle.textContent = `รายละเอียดการจองสำหรับวันที่ ${new Date(dateString).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} 🗓️`;
+        modalBookingDetails.innerHTML = ''; // Clear previous details
+        if (bookings.length === 0) {
+            modalBookingDetails.innerHTML = '<p>ไม่มีรายการจองในวันนี้</p>';
+        } else {
+            bookings.forEach((booking, index) => {
+                const bookingDiv = document.createElement('div');
+                bookingDiv.innerHTML = `
+                    <h4>รายการที่ ${index + 1}</h4>
+                    <p><strong>ผู้จอง:</strong> ${booking['ชื่อ-สกุล ผู้จอง']}</p>
+                    <p><strong>ตำแหน่ง:</strong> ${booking['ตำแหน่ง']}</p>
+                    <p><strong>เบอร์โทร:</strong> ${booking['เบอร์โทร']}</p>
+                    <p><strong>กลุ่มงาน:</strong> ${booking['กลุ่มงาน/กลุ่มสาระฯ']}</p>
+                    <p><strong>รถที่ใช้:</strong> ${booking['รถที่ต้องการใช้']}</p>
+                    <p><strong>เวลา:</strong> ${booking['เวลาเริ่มต้น']} - ${booking['เวลาสิ้นสุด']}</p>
+                    <p><strong>สถานที่ไป:</strong> ${booking['สถานที่ไป']}</p>
+                    <p><strong>ขับขี่โดย:</strong> ${booking['ขับขี่โดย']}</p>
+                    ${booking['ลิงก์เอกสารประกอบ'] ? `<p><strong>เอกสารประกอบ:</strong> <a href="${booking['ลิงก์เอกสารประกอบ']}" target="_blank">ดูเอกสาร 📄</a></p>` : ''}
+                    <hr style="border-top: 1px dashed #eee; margin: 15px 0;">
+                `;
+                modalBookingDetails.appendChild(bookingDiv);
+            });
+        }
+        bookingModal.style.display = 'block'; // Show the modal
+    }
+
+    // Function to close the modal
+    function closeModal() {
+      bookingModal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+      if (event.target == bookingModal) {
+        closeModal();
+      }
+    }
+
+    // --- Statistics Logic ---
+    let monthlyUsageChartInstance; // Chart.js instance for monthly usage
+    let departmentUsageChartInstance; // Chart.js instance for department usage
+    let carUsageChartInstance; // Chart.js instance for car usage
+
+    // Function to load booking data and render charts
+    function loadBookingsAndRenderCharts() {
+      // **FIX: Added check for google.script.run availability**
+      if (typeof google !== 'undefined' && typeof google.script !== 'undefined' && typeof google.script.run !== 'undefined') {
+        google.script.run
+          .withSuccessHandler(function(bookings) {
+            allBookings = bookings; // Store all bookings globally
+            renderCharts(bookings); // Render charts with the fetched data
+          })
+          .withFailureHandler(function(error) {
+            console.error("Failed to load bookings for stats: ", error);
+          })
+          .getBookingData(); // Call Apps Script to get booking data
+      } else {
+        console.warn('google.script.run is not defined. Statistics data cannot be loaded.');
+      }
+    }
+
+    // Function to render all charts
+    function renderCharts(bookings) {
+      // --- Data processing for Monthly Usage Bar Chart ---
+      const monthlyUsage = {};
+      bookings.forEach(booking => {
+        const startDate = new Date(booking['วันที่เริ่ม']); // Date string in YYYY-MM-DD
+        // Format month and year for grouping
+        const monthYear = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+        monthlyUsage[monthYear] = (monthlyUsage[monthYear] || 0) + 1;
+      });
+
+      // Sort months chronologically
+      const sortedMonths = Object.keys(monthlyUsage).sort();
+      // Format labels for display (e.g., "มกราคม 2567")
+      const monthlyLabels = sortedMonths.map(my => new Date(my + '-01').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }));
+      const monthlyData = sortedMonths.map(my => monthlyUsage[my]);
+
+      // Destroy existing chart instance if it exists to prevent overlap
+      if (monthlyUsageChartInstance) monthlyUsageChartInstance.destroy();
+      // Create new Bar Chart for Monthly Usage
+      monthlyUsageChartInstance = new Chart(document.getElementById('monthlyUsageChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: monthlyLabels,
+          datasets: [{
+            label: 'จำนวนวันใช้งาน',
+            data: monthlyData,
+            backgroundColor: 'rgba(255, 192, 203, 0.8)', // Pastel Red
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 1,
+            borderRadius: 5 // Rounded bars
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false, // Allow canvas to resize freely
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'จำนวนวัน'
+              },
+              ticks: {
+                  precision: 0 // Ensure integer ticks for count
+              }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'เดือน'
+                }
+            }
+          },
+          plugins: {
+              legend: {
+                  display: false // Hide legend as there's only one dataset
+              },
+              tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return `จำนวนวันใช้งาน: ${context.parsed.y}`;
+                    }
+                }
+              }
+          },
+          animation: {
+              duration: 1000, // Animation duration
+              easing: 'easeOutQuart' // Animation easing
+          }
+        }
+      });
+
+      // --- Data processing for Department Usage Pie Chart ---
+      const departmentUsage = {};
+      bookings.forEach(booking => {
+        const department = booking['กลุ่มงาน/กลุ่มสาระฯ'];
+        departmentUsage[department] = (departmentUsage[department] || 0) + 1;
+      });
+      const departmentLabels = Object.keys(departmentUsage);
+      const departmentData = Object.values(departmentUsage);
+
+      // Destroy existing chart instance if it exists
+      if (departmentUsageChartInstance) departmentUsageChartInstance.destroy();
+      // Create new Pie Chart for Department Usage
+      departmentUsageChartInstance = new Chart(document.getElementById('departmentUsageChart').getContext('2d'), {
+        type: 'pie',
+        data: {
+          labels: departmentLabels,
+          datasets: [{
+            data: departmentData,
+            backgroundColor: [
+              '#FFC0CB', '#ADD8E6', '#98FB98', '#FFD700', '#DDA0DD', // Pastel colors
+              '#AFEEEE', '#FFB6C1', '#B0E0E6', '#C0C0C0', '#F08080',
+              '#FFE4B5', '#87CEEB', '#E6E6FA', '#FFFAFA', '#FFEBCD'
+            ],
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right', // Position legend on the right
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed !== null) {
+                            label += context.parsed;
+                        }
+                        return label;
+                    }
+                }
+            }
+          },
+          animation: {
+              duration: 1000,
+              easing: 'easeOutQuart'
+          }
+        }
+      });
+
+      // --- Data processing for Car Usage Pie Chart ---
+      const carUsage = {};
+      bookings.forEach(booking => {
+        const car = booking['รถที่ต้องการใช้'];
+        carUsage[car] = (carUsage[car] || 0) + 1;
+      });
+      const carLabels = Object.keys(carUsage);
+      const carData = Object.values(carUsage);
+
+      // Destroy existing chart instance if it exists
+      if (carUsageChartInstance) carUsageChartInstance.destroy();
+      // Create new Pie Chart for Car Usage
+      carUsageChartInstance = new Chart(document.getElementById('carUsageChart').getContext('2d'), {
+        type: 'pie',
+        data: {
+          labels: carLabels,
+          datasets: [{
+            data: carData,
+            backgroundColor: [
+              '#D32F2F', '#FF7F50', '#8FBC8F', '#4682B4' // Slightly bolder colors for cars
+            ],
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed !== null) {
+                            label += context.parsed;
+                        }
+                        return label;
+                    }
+                }
+            }
+          },
+          animation: {
+              duration: 1000,
+              easing: 'easeOutQuart'
+          }
+        }
+      });
+    }
+
+    // --- Print Memo Tab Logic ---
+    function loadMemoTable() {
+        const memoTableBody = document.getElementById('memoTableBody');
+        memoTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>';
+        
+        // **FIX: Added check for google.script.run availability**
+        if (typeof google !== 'undefined' && typeof google.script !== 'undefined' && typeof google.script.run !== 'undefined') {
+          google.script.run
+              .withSuccessHandler(function(bookings) {
+                  allBookings = bookings; // Update global bookings list
+                  memoTableBody.innerHTML = ''; // Clear existing rows
+                  if (bookings.length === 0) {
+                      memoTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">ยังไม่มีข้อมูลการจอง </td></tr>';
+                      return;
+                  }
+                  // Sort bookings by date descending for easier access to recent ones
+                  bookings.sort((a, b) => new Date(b['วันที่เริ่ม']) - new Date(a['วันที่เริ่ม']));
+
+                  bookings.forEach(booking => {
+                      const row = memoTableBody.insertRow();
+                      const startDateFormatted = new Date(booking['วันที่เริ่ม']).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+                      row.insertCell().textContent = booking['ชื่อ-สกุล ผู้จอง'];
+                      row.insertCell().textContent = booking['รถที่ต้องการใช้'];
+                      row.insertCell().textContent = startDateFormatted;
+                      
+                      const actionCell = row.insertCell();
+                      const printButton = document.createElement('button');
+                      printButton.textContent = 'คลิก';
+                      // Pass the unique Timestamp ISO string as an identifier
+                      printButton.onclick = () => generatePrintMemo(booking['Timestamp']); 
+                      actionCell.appendChild(printButton);
+                  });
+              })
+              .withFailureHandler(function(error) {
+                  memoTableBody.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center;">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message} 🚨</td></tr>`;
+                  console.error("Failed to load memo table data: ", error);
+              })
+              .getBookingData();
+        } else {
+            memoTableBody.innerHTML = '<tr><td colspan="4" style="color: red; text-align: center;">ไม่สามารถโหลดข้อมูลได้: เว็บแอปไม่ได้ทำงานในสภาพแวดล้อม Google Apps Script 🛑</td></tr>';
+            console.warn('google.script.run is not defined. Memo table data cannot be loaded.');
+        }
+    }
+
+    function generatePrintMemo(timestampIso) {
+        // **FIX: Added check for google.script.run availability**
+        if (typeof google !== 'undefined' && typeof google.script !== 'undefined' && typeof google.script.run !== 'undefined') {
+          google.script.run
+              .withSuccessHandler(function(booking) {
+                  if (!booking) {
+                      alert('ไม่พบข้อมูลการจองสำหรับบันทึกนี้');
+                      return;
+                  }
+                  const printContent = `
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                          <title>บันทึกข้อความ</title>
+                          <link rel="preconnect" href="https://fonts.googleapis.com">
+                          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                          <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+                          <style>
+                              body {
+                                  font-family: 'Sarabun', sans-serif;
+                                  margin: 0;
+                                  padding: 20px;
+                                  color: #333;
+                                  line-height: 1.6;
+                                  font-size: 14pt; /* Larger font for print */
+                              }
+                              .print-container {
+                                  max-width: 800px;
+                                  margin: 0 auto;
+                                  padding: 30px;
+                                  border: 1px solid #ccc;
+                                  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                                  background-color: #fff;
+                              }
+                              .print-header {
+                                  text-align: center;
+                                  margin-bottom: 30px;
+                                  padding-bottom: 15px;
+                                  border-bottom: 2px solid #eee;
+                              }
+                              .print-header h1 {
+                                  font-size: 2em;
+                                  margin-bottom: 5px;
+                                  color: #D32F2F;
+                              }
+                              .print-header p {
+                                  font-size: 1.1em;
+                                  margin: 0;
+                              }
+                              .print-details p {
+                                  margin-bottom: 10px;
+                              }
+                              .print-details strong {
+                                  display: inline-block;
+                                  min-width: 150px; /* Align labels for readability */
+                                  color: #555;
+                              }
+                              .print-footer {
+                                  margin-top: 50px;
+                                  text-align: center;
+                                  border-top: 1px dashed #ccc;
+                                  padding-top: 20px;
+                                  font-size: 0.9em;
+                                  color: #777;
+                              }
+                              .print-button-container {
+                                  text-align: center;
+                                  margin-top: 30px;
+                              }
+                              .print-button {
+                                  background-color: #4CAF50; /* Green print button */
+                                  color: white;
+                                  padding: 12px 25px;
+                                  border: none;
+                                  border-radius: 5px;
+                                  cursor: pointer;
+                                  font-size: 1.1em;
+                                  transition: background-color 0.3s ease;
+                              }
+                              .print-button:hover {
+                                  background-color: #45a049;
+                              }
+                              @media print {
+                                  .print-button-container {
+                                      display: none; /* Hide button when printing */
+                                  }
+                              }
+                          </style>
+                      </head>
+                      <body>
+                          <div class="print-container">
+                              <div class="print-header">
+                                  <h1>บันทึกข้อความขออนุมัติใช้รถราชการ 🚗</h1>
+                                  <p>โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
+                                  <p>วันที่บันทึก: ${booking['Timestamp']}</p>
+                              </div>
+                              <div class="print-details">
+                                  <p><strong>ชื่อ-สกุล ผู้จอง:</strong> ${booking['ชื่อ-สกุล ผู้จอง']}</p>
+                                  <p><strong>ตำแหน่ง:</strong> ${booking['ตำแหน่ง']}</p>
+                                  <p><strong>เบอร์โทร:</strong> ${booking['เบอร์โทร']}</p>
+                                  <p><strong>กลุ่มงาน/กลุ่มสาระฯ:</strong> ${booking['กลุ่มงาน/กลุ่มสาระฯ']}</p>
+                                  <p><strong>รถที่ต้องการใช้:</strong> ${booking['รถที่ต้องการใช้']}</p>
+                                  <p><strong>วันที่เริ่ม:</strong> ${booking['วันที่เริ่ม']}</p>
+                                  <p><strong>เวลาเริ่มต้น:</strong> ${booking['เวลาเริ่มต้น']}</p>
+                                  <p><strong>วันที่สิ้นสุด:</strong> ${booking['วันที่สิ้นสุด']}</p>
+                                  <p><strong>เวลาสิ้นสุด:</strong> ${booking['เวลาสิ้นสุด']}</p>
+                                  <p><strong>จำนวนครู:</strong> ${booking['จำนวนครู']}</p>
+                                  <p><strong>จำนวนนักเรียน:</strong> ${booking['จำนวนนักเรียน']}</p>
+                                  <p><strong>ระยะทางไปกลับ (กิโลเมตร):</strong> ${booking['ระยะทางไปกลับ (กิโลเมตร)']}</p>
+                                  <p><strong>ขับขี่โดย:</strong> ${booking['ขับขี่โดย']}</p>
+                                  <p><strong>สถานที่ไป:</strong> ${booking['สถานที่ไป'].replace(/\n/g, '<br>')}</p>
+                                  ${booking['ลิงก์เอกสารประกอบ'] ? `<p><strong>เอกสารประกอบ:</strong> <a href="${booking['ลิงก์เอกสารประกอบ']}" target="_blank">ดูเอกสารประกอบ</a></p>` : ''}
+                              </div>
+                              <div class="print-footer">
+                                  <p>จัดทำโดย กลุ่มงานบริหารทั่วไป โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
+                              </div>
+                              <div class="print-button-container">
+                                  <button class="print-button" onclick="window.print()">สั่งพิมพ์บันทึกข้อความ 🖨️</button>
+                              </div>
+                          </div>
+                      </body>
+                      </html>
+                  `;
+
+                  const printWindow = window.open('', '_blank');
+                  if (printWindow) {
+                      printWindow.document.write(printContent);
+                      printWindow.document.close(); // Close the document to ensure content is fully loaded
+                      // Optional: Automatically trigger print dialog after content loads
+                      // printWindow.onload = () => printWindow.print(); 
+                  } else {
+                      alert('เบราว์เซอร์ของคุณบล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์บันทึก');
+                  }
+              })
+              .withFailureHandler(function(error) {
+                  alert('เกิดข้อผิดพลาดในการดึงข้อมูลบันทึกข้อความ: ' + error.message);
+                  console.error("Failed to fetch single booking data: ", error);
+              })
+              .getSingleBookingData(timestampIso); // Pass the ISO timestamp to the server function
+        } else {
+            alert('ไม่สามารถพิมพ์บันทึกข้อความได้: เว็บแอปไม่ได้ทำงานในสภาพแวดล้อม Google Apps Script 🛑');
+            console.warn('google.script.run is not defined. Cannot generate print memo.');
+        }
+    }
+
+
+    // Initial load logic for the application
+    document.addEventListener('DOMContentLoaded', (event) => {
+      // Set default dates for the booking form to today
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      document.getElementById('startDate').value = formattedDate;
+      document.getElementById('endDate').value = formattedDate;
+
+      // Open the default tab (booking form) on page load
+      openTab(null, 'bookingForm');
+    });
+  </script>
+</body>
+</html>
