@@ -1,1073 +1,1161 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { BarChart, Bar, PieChart, Pie, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบขออนุมัติใช้รถไปราชการ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Sarabun -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- React & ReactDOM CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel Standalone for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Recharts (simplified for direct use, still requires some manual setup if not using module bundler) -->
+    <!-- For charts, we will implement simple SVG charts directly in React for single HTML file compatibility -->
 
-// Function to get the app ID, essential for Firebase configuration.
-// If __app_id is not defined, it defaults to 'default-app-id'.
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-// Parse the Firebase configuration string into a JavaScript object.
-// This configuration is crucial for initializing Firebase services.
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-
-function App() {
-  const [activeTab, setActiveTab] = useState('request'); // State to manage active tab
-  const [formData, setFormData] = useState({ // State for form data
-    fullName: '',
-    position: 'ข้าราชการครู',
-    phoneNumber: '',
-    department: 'วิชาการ',
-    carType: 'รถตู้ใหม่ นจ1491',
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: '',
-    numTeachers: '',
-    numStudents: '',
-    distance: '',
-    driverOption: 'พนักงานขับรถ',
-    destination: '',
-    attachment: null, // For file upload
-  });
-  const [bookings, setBookings] = useState([]); // State to store booking data
-  const [message, setMessage] = useState(''); // State for user messages (success/error)
-  const [messageType, setMessageType] = useState(''); // State for message type ('success' or 'error')
-  const [isLoading, setIsLoading] = useState(false); // State for loading indicator
-  const [selectedDateBookings, setSelectedDateBookings] = useState([]); // Bookings for selected calendar date
-  const [isModalOpen, setIsModalOpen] = useState(false); // State for modal visibility
-  const [memoData, setMemoData] = useState(null); // State to hold data for memo generation
-  const fileInputRef = useRef(null); // Ref for file input to clear it
-
-  // Google App Script URL and Sheet/Drive IDs
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFe1O0qs3ZwwDNBw_b8rZ00ZZNyrs8nKwHw_Oax5lRZLDb9asr-RzdokcBYxHn0d92/exec';
-  const SHEET_ID = '1r5L-EtLsZ4eAT9wWlUOSByig7KvcUZd8UyTGY9lVZhg';
-  const DRIVE_FOLDER_ID = '1-3zIxlMUseAlwzcndax-X8IrEUkKkMaI';
-
-  // Options for dropdowns
-  const positions = ['ข้าราชการครู', 'พนักงานราชการ', 'ครูอัตราจ้าง', 'อื่นๆ'];
-  const departments = [
-    'วิชาการ', 'กิจการ', 'บริหารทั่วไป', 'บุคคล', 'ธุรการ', 'งบประมาณ', 'แผนงาน',
-    'ภาษาไทย', 'ศิลปะ', 'คณิตศาสตร์', 'สุขศึกษาและพลศึกษา', 'วิทยาศาสตร์และเทคโนโลยี',
-    'สังคมศึกษาศาสนาและวัฒนธรรม', 'การงานอาชีพ', 'ภาษาต่างประเทศ', 'อื่น ๆ'
-  ];
-  const carTypes = [
-    'รถตู้ใหม่ นจ1491', 'รถตู้เก่า นง4729', 'รถกะบะ นจ1093', 'รถบรรทุก 6 ล้อ 40-0431'
-  ];
-
-  // Fetch bookings on component mount and when active tab changes to 'schedule' or 'stats'
-  useEffect(() => {
-    if (activeTab === 'schedule' || activeTab === 'stats' || activeTab === 'print') {
-      fetchBookings();
-    }
-  }, [activeTab]);
-
-  // Function to fetch booking data from Google Sheet
-  const fetchBookings = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${SCRIPT_URL}?action=getAllBookings&sheetId=${SHEET_ID}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (data && Array.isArray(data.data)) {
-        // Map data to a more usable format and parse dates
-        const formattedData = data.data.map(row => {
-          const startDate = new Date(row['วันที่เริ่ม']);
-          const endDate = new Date(row['วันที่สิ้นสุด']);
-          return {
-            ...row,
-            startDateObj: startDate,
-            endDateObj: endDate,
-            // Combine date and time for full timestamp objects for easier comparison
-            startDateTime: new Date(`${row['วันที่เริ่ม']}T${row['เวลาเริ่มต้น']}`),
-            endDateTime: new Date(`${row['วันที่สิ้นสุด']}T${row['เวลาสิ้นสุด']}`),
-          };
-        });
-        setBookings(formattedData);
-      } else {
-        setBookings([]);
-      }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      showMessage('เกิดข้อผิดพลาดในการดึงข้อมูลการจอง 😥', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { name, value, type, files } = e.target;
-    if (type === 'file') {
-      setFormData({ ...formData, [name]: files[0] });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-  };
-
-  // Show a message to the user for a short period
-  const showMessage = (msg, type) => {
-    setMessage(msg);
-    setMessageType(type);
-    setTimeout(() => {
-      setMessage('');
-      setMessageType('');
-    }, 5000); // Message disappears after 5 seconds
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
-    setMessageType('');
-
-    // Form validation
-    for (const key in formData) {
-      if (key !== 'attachment' && formData[key] === '') {
-        showMessage('กรุณากรอกข้อมูลให้ครบถ้วนก่อนส่ง ⚠️', 'error');
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    // Date/Time validation
-    const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`);
-    const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
-
-    if (startDateTime >= endDateTime) {
-      showMessage('วันที่และเวลาสิ้นสุดต้องอยู่หลังวันที่และเวลาเริ่มต้น 🗓️⏰', 'error');
-      setIsLoading(false);
-      return;
-    }
-    if (startDateTime < new Date()) {
-      showMessage('วันที่และเวลาเริ่มต้นต้องไม่เป็นอดีต ⏳', 'error');
-      setIsLoading(false);
-      return;
-    }
-
-    const dataToSend = new FormData();
-    dataToSend.append('action', 'addBooking');
-    dataToSend.append('sheetId', SHEET_ID);
-    dataToSend.append('folderId', DRIVE_FOLDER_ID); // Google Drive folder ID
-
-    // Append all form data fields
-    for (const key in formData) {
-      if (key !== 'attachment') {
-        dataToSend.append(key, formData[key]);
-      }
-    }
-
-    // Handle file upload
-    if (formData.attachment) {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64Data = event.target.result.split(',')[1]; // Get base64 string
-        dataToSend.append('attachmentData', base64Data);
-        dataToSend.append('attachmentName', formData.attachment.name);
-
-        try {
-          // Send data to Google App Script
-          const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: dataToSend,
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const result = await response.json();
-          if (result.success) {
-            showMessage('การจองรถสำเร็จ! ✅', 'success');
-            // Clear form after successful submission
-            setFormData({
-              fullName: '',
-              position: 'ข้าราชการครู',
-              phoneNumber: '',
-              department: 'วิชาการ',
-              carType: 'รถตู้ใหม่ นจ1491',
-              startDate: '',
-              startTime: '',
-              endDate: '',
-              endTime: '',
-              numTeachers: '',
-              numStudents: '',
-              distance: '',
-              driverOption: 'พนักงานขับรถ',
-              destination: '',
-              attachment: null,
-            });
-            if (fileInputRef.current) {
-              fileInputRef.current.value = ''; // Clear file input
-            }
-            fetchBookings(); // Refresh bookings to update calendar/stats
-          } else {
-            showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
-          }
-        } catch (error) {
-          console.error('Error submitting form:', error);
-          showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล 🤯', 'error');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      reader.readAsDataURL(formData.attachment); // Read file as base64
-    } else {
-      // If no attachment, just send other data
-      try {
-        const response = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          body: dataToSend,
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        if (result.success) {
-          showMessage('การจองรถสำเร็จ! ✅', 'success');
-          setFormData({
-            fullName: '',
-            position: 'ข้าราชการครู',
-            phoneNumber: '',
-            department: 'วิชาการ',
-            carType: 'รถตู้ใหม่ นจ1491',
-            startDate: '',
-            startTime: '',
-            endDate: '',
-            endTime: '',
-            numTeachers: '',
-            numStudents: '',
-            distance: '',
-            driverOption: 'พนักงานขับรถ',
-            destination: '',
-            attachment: null,
-          });
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-          fetchBookings();
-        } else {
-          showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
-        }
-      } catch (error) {
-        console.error('Error submitting form:', error);
-        showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล 🤯', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  // Calendar logic
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-
-  const daysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = (month, year) => new Date(year, month, 1).getDay(); // 0 for Sunday, 1 for Monday
-
-  const getCalendarDays = () => {
-    const totalDays = daysInMonth(currentMonth, currentYear);
-    const startDay = firstDayOfMonth(currentMonth, currentYear);
-    const days = [];
-
-    // Add empty cells for days before the 1st of the month
-    for (let i = 0; i < startDay; i++) {
-      days.push(null);
-    }
-
-    // Add actual days of the month
-    for (let i = 1; i <= totalDays; i++) {
-      days.push(i);
-    }
-    return days;
-  };
-
-  const handlePrevMonth = () => {
-    setCurrentMonth(prevMonth => (prevMonth === 0 ? 11 : prevMonth - 1));
-    setCurrentYear(prevMonth => (prevMonth === 0 ? prevMonth - 1 : prevMonth));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentMonth(prevMonth => (prevMonth === 11 ? 0 : prevMonth + 1));
-    setCurrentYear(prevMonth => (prevMonth === 11 ? prevMonth + 1 : prevMonth));
-  };
-
-  // Get bookings for a specific day
-  const getBookingsForDay = (day) => {
-    if (!day) return [];
-    const date = new Date(currentYear, currentMonth, day);
-    return bookings.filter(booking => {
-      // Check if the booking period spans across the selected date
-      return booking.startDateObj <= date && booking.endDateObj >= date;
-    });
-  };
-
-  // Handle clicking on a day in the calendar
-  const handleDayClick = (day) => {
-    if (day) {
-      setSelectedDateBookings(getBookingsForDay(day));
-      setIsModalOpen(true);
-    }
-  };
-
-  // Statistics calculation
-  const getMonthlyUsage = () => {
-    const monthlyData = {};
-    bookings.forEach(booking => {
-      const startMonth = booking.startDateObj.getMonth();
-      const startYear = booking.startDateObj.getFullYear();
-      const endMonth = booking.endDateObj.getMonth();
-      const endYear = booking.endDateObj.getFullYear();
-
-      // Count days of usage, considering bookings spanning multiple months
-      let currentDate = new Date(booking.startDateObj);
-      while (currentDate <= booking.endDateObj) {
-        const monthYearKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
-        if (!monthlyData[monthYearKey]) {
-          monthlyData[monthYearKey] = { month: currentDate.toLocaleString('th-TH', { month: 'long', year: 'numeric' }), usageDays: 0 };
-        }
-        monthlyData[monthYearKey].usageDays++;
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-    });
-
-    return Object.values(monthlyData).sort((a, b) => {
-      const [aYear, aMonth] = a.month.split(' ')[1] ? [a.month.split(' ')[1], new Date(Date.parse(a.month.split(' ')[0] + ' 1, 2000')).getMonth()] : [0,0]; // Simplified for sorting
-      const [bYear, bMonth] = b.month.split(' ')[1] ? [b.month.split(' ')[1], new Date(Date.parse(b.month.split(' ')[0] + ' 1, 2000')).getMonth()] : [0,0];
-      return (aYear - bYear) || (aMonth - bMonth);
-    });
-  };
-
-  const getCarUsageStats = () => {
-    const carStats = {};
-    bookings.forEach(booking => {
-      const car = booking['รถที่ต้องการใช้'];
-      if (car) {
-        carStats[car] = (carStats[car] || 0) + 1;
-      }
-    });
-    return Object.keys(carStats).map(car => ({ name: car, value: carStats[car] }));
-  };
-
-  const getDepartmentUsageStats = () => {
-    const departmentStats = {};
-    bookings.forEach(booking => {
-      const department = booking['กลุ่มงาน/กลุ่มสาระฯ'];
-      if (department) {
-        departmentStats[department] = (departmentStats[department] || 0) + 1;
-      }
-    });
-    return Object.keys(departmentStats).map(dept => ({ name: dept, value: departmentStats[dept] }));
-  };
-
-  const getDestinationUsageStats = () => {
-    const destinationStats = {};
-    bookings.forEach(booking => {
-      const destination = booking['สถานที่ไป'];
-      if (destination) {
-        destinationStats[destination] = (destinationStats[destination] || 0) + 1;
-      }
-    });
-    return Object.keys(destinationStats).map(dest => ({ name: dest, value: destinationStats[dest] }));
-  };
-
-  // Memo generation
-  const handleGenerateMemo = (booking) => {
-    setMemoData(booking);
-    setActiveTab('memo-preview'); // Switch to a new tab/view for memo preview
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const COLORS = ['#FFCDD2', '#EF9A9A', '#E57373', '#EF5350', '#F44336', '#D32F2F', '#C62828', '#B71C1C']; // Shades of pastel red
-
-  return (
-    <div className="min-h-screen bg-pink-50 font-sarabun text-gray-800 flex flex-col items-center p-4 sm:p-6 transition-all duration-300 ease-in-out animate-fade-in">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap');
-        .font-sarabun {
-          font-family: 'Sarabun', sans-serif;
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
         }
         .animate-fade-in {
-          animation: fadeIn 0.8s ease-in-out;
+            animation: fadeIn 0.8s ease-in-out;
         }
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .tab-button {
-          transition: all 0.3s ease-in-out;
-          transform-origin: center;
+            transition: all 0.3s ease-in-out;
+            transform-origin: center;
         }
         .tab-button:hover {
-          transform: translateY(-3px) scale(1.02);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .tab-button.active {
-          transform: translateY(0) scale(1);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transform: translateY(0) scale(1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         .calendar-day-hover:hover {
-          transform: scale(1.05);
-          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-          background-color: #ffebee; /* Lighter red on hover */
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            background-color: #ffebee; /* Lighter red on hover */
         }
         .modal-enter {
-          opacity: 0;
-          transform: scale(0.9);
+            opacity: 0;
+            transform: scale(0.9);
         }
         .modal-enter-active {
-          opacity: 1;
-          transform: scale(1);
-          transition: opacity 300ms, transform 300ms;
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 300ms, transform 300ms;
         }
         .modal-exit {
-          opacity: 1;
+            opacity: 1;
         }
         .modal-exit-active {
-          opacity: 0;
-          transform: scale(0.9);
-          transition: opacity 300ms, transform 300ms;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 300ms, transform 300ms;
         }
-      `}</style>
+        .loader {
+            border-top-color: #EF5350;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-      {/* Header Section */}
-      <header className="w-full max-w-4xl bg-white shadow-lg rounded-2xl p-4 sm:p-6 mb-8 flex flex-col md:flex-row items-center justify-between animate-fade-in">
-        <div className="flex items-center mb-4 md:mb-0">
-          <img src="https://img2.pic.in.th/pic/logo-HDR.md.png" alt="โลโก้โรงเรียน" className="h-16 w-16 mr-4 rounded-lg shadow-md" />
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-red-700 leading-tight">
-              ระบบขออนุมัติใช้รถไปราชการ 🚗
-            </h1>
-            <p className="text-base sm:text-lg text-gray-600">โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
-          </div>
-        </div>
-        {/* Navigation Tabs */}
-        <nav className="flex flex-wrap justify-center md:justify-end gap-2 sm:gap-4 mt-4 md:mt-0">
-          <button
-            className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
-              ${activeTab === 'request' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
-            `}
-            onClick={() => setActiveTab('request')}
-          >
-            กรอกข้อมูลจองรถ 📝
-          </button>
-          <button
-            className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
-              ${activeTab === 'schedule' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
-            `}
-            onClick={() => setActiveTab('schedule')}
-          >
-            ตารางแสดงการจองรถ 📅
-          </button>
-          <button
-            className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
-              ${activeTab === 'stats' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
-            `}
-            onClick={() => setActiveTab('stats')}
-          >
-            สถิติการใช้รถ 📊
-          </button>
-          <button
-            className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
-              ${activeTab === 'print' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
-            `}
-            onClick={() => setActiveTab('print')}
-          >
-            พิมพ์บันทึกข้อความ 📄
-          </button>
-        </nav>
-      </header>
+        /* Print styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .print-area, .print-area * {
+                visibility: visible;
+            }
+            .print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .print\\:hidden {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-pink-50">
+    <div id="root"></div>
 
-      {/* Main Content Area */}
-      <main className="w-full max-w-4xl bg-white shadow-lg rounded-2xl p-4 sm:p-8 mb-8 animate-fade-in">
-        {isLoading && (
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
-            <div className="flex flex-col items-center bg-white p-6 rounded-lg shadow-xl">
-              <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
-              <p className="text-red-700 text-lg font-semibold">กำลังโหลด... โปรดรอสักครู่ ⏳</p>
-            </div>
-            <style>{`
-              .loader {
-                border-top-color: #EF5350;
-                -webkit-animation: spinner 1.5s linear infinite;
-                animation: spinner 1.5s linear infinite;
-              }
-              @-webkit-keyframes spinner {
-                0% { -webkit-transform: rotate(0deg); }
-                100% { -webkit-transform: rotate(360deg); }
-              }
-              @keyframes spinner {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
-          </div>
-        )}
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-        {message && (
-          <div className={`p-3 rounded-lg mb-4 text-center text-sm sm:text-base animate-fade-in ${messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {message}
-          </div>
-        )}
+        // Function to get the app ID, essential for Firebase configuration.
+        // If __app_id is not defined, it defaults to 'default-app-id'.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        {/* Tab 1: Car Request Form */}
-        {activeTab === 'request' && (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">แบบฟอร์มขออนุมัติใช้รถราชการ 📝</h2>
+        // Parse the Firebase configuration string into a JavaScript object.
+        // This configuration is crucial for initializing Firebase services.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
-            {/* General Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="fullName" className="block text-gray-700 font-medium mb-1">ชื่อ-สกุล ผู้จอง <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  id="fullName"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  placeholder="เช่น สมชาย ใจดี"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="position" className="block text-gray-700 font-medium mb-1">ตำแหน่ง <span className="text-red-500">*</span></label>
-                <select
-                  id="position"
-                  name="position"
-                  value={formData.position}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 bg-white"
-                  required
-                >
-                  {positions.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="phoneNumber" className="block text-gray-700 font-medium mb-1">เบอร์โทร 📞 <span className="text-red-500">*</span></label>
-                <input
-                  type="tel"
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  value={formData.phoneNumber}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  placeholder="เช่น 08XXXXXXXX"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="department" className="block text-gray-700 font-medium mb-1">กลุ่มงาน/กลุ่มสาระฯ 🏫 <span className="text-red-500">*</span></label>
-                <select
-                  id="department"
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 bg-white"
-                  required
-                >
-                  {departments.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        function App() {
+            const [activeTab, setActiveTab] = useState('request'); // State to manage active tab
+            const [formData, setFormData] = useState({ // State for form data
+                fullName: '',
+                position: 'ข้าราชการครู',
+                phoneNumber: '',
+                department: 'วิชาการ',
+                carType: 'รถตู้ใหม่ นจ1491',
+                startDate: '',
+                startTime: '',
+                endDate: '',
+                endTime: '',
+                numTeachers: '',
+                numStudents: '',
+                distance: '',
+                driverOption: 'พนักงานขับรถ',
+                destination: '',
+                attachment: null, // For file upload
+            });
+            const [bookings, setBookings] = useState([]); // State to store booking data
+            const [message, setMessage] = useState(''); // State for user messages (success/error)
+            const [messageType, setMessageType] = useState(''); // State for message type ('success' or 'error')
+            const [isLoading, setIsLoading] = useState(false); // State for loading indicator
+            const [selectedDateBookings, setSelectedDateBookings] = useState([]); // Bookings for selected calendar date
+            const [isModalOpen, setIsModalOpen] = useState(false); // State for modal visibility
+            const [memoData, setMemoData] = useState(null); // State to hold data for memo generation
+            const fileInputRef = useRef(null); // Ref for file input to clear it
 
-            {/* Car Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="carType" className="block text-gray-700 font-medium mb-1">รถที่ต้องการใช้ 🚌 <span className="text-red-500">*</span></label>
-                <select
-                  id="carType"
-                  name="carType"
-                  value={formData.carType}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 bg-white"
-                  required
-                >
-                  {carTypes.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex space-x-4">
-                <div className="w-1/2">
-                  <label className="block text-gray-700 font-medium mb-1">ขับขี่โดย 🧑‍✈️ <span className="text-red-500">*</span></label>
-                  <div className="flex items-center space-x-4 h-full">
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        name="driverOption"
-                        value="พนักงานขับรถ"
-                        checked={formData.driverOption === 'พนักงานขับรถ'}
-                        onChange={handleChange}
-                        className="form-radio text-red-500 h-5 w-5"
-                      />
-                      <span className="ml-2 text-gray-700">พนักงานขับรถ</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        name="driverOption"
-                        value="ข้าพเจ้า"
-                        checked={formData.driverOption === 'ข้าพเจ้า'}
-                        onChange={handleChange}
-                        className="form-radio text-red-500 h-5 w-5"
-                      />
-                      <span className="ml-2 text-gray-700">ข้าพเจ้า</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
+            // Google App Script URL and Sheet/Drive IDs
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFe1O0qs3ZwwDNBw_b8rZ00ZZNyrs8nKwHw_Oax5lRZLDb9asr-RzdokcBYxHn0d92/exec';
+            const SHEET_ID = '1r5L-EtLsZ4eAT9wWlUOSByig7KvcUZd8UyTGY9lVZhg';
+            const DRIVE_FOLDER_ID = '1-3zIxlMUseAlwzcndax-X8IrEUkKkMaI';
 
-            {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="startDate" className="block text-gray-700 font-medium mb-1">วันที่เริ่ม 🗓️ <span className="text-red-500">*</span></label>
-                <input
-                  type="date"
-                  id="startDate"
-                  name="startDate"
-                  value={formData.startDate}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="startTime" className="block text-gray-700 font-medium mb-1">เวลาเริ่มต้น ⏰ <span className="text-red-500">*</span></label>
-                <input
-                  type="time"
-                  id="startTime"
-                  name="startTime"
-                  value={formData.startTime}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="endDate" className="block text-gray-700 font-medium mb-1">วันที่สิ้นสุด 🗓️ <span className="text-red-500">*</span></label>
-                <input
-                  type="date"
-                  id="endDate"
-                  name="endDate"
-                  value={formData.endDate}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="endTime" className="block text-gray-700 font-medium mb-1">เวลาสิ้นสุด ⏰ <span className="text-red-500">*</span></label>
-                <input
-                  type="time"
-                  id="endTime"
-                  name="endTime"
-                  value={formData.endTime}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  required
-                />
-              </div>
-            </div>
+            // Options for dropdowns
+            const positions = ['ข้าราชการครู', 'พนักงานราชการ', 'ครูอัตราจ้าง', 'อื่นๆ'];
+            const departments = [
+                'วิชาการ', 'กิจการ', 'บริหารทั่วไป', 'บุคคล', 'ธุรการ', 'งบประมาณ', 'แผนงาน',
+                'ภาษาไทย', 'ศิลปะ', 'คณิตศาสตร์', 'สุขศึกษาและพลศึกษา', 'วิทยาศาสตร์และเทคโนโลยี',
+                'สังคมศึกษาศาสนาและวัฒนธรรม', 'การงานอาชีพ', 'ภาษาต่างประเทศ', 'อื่น ๆ'
+            ];
+            const carTypes = [
+                'รถตู้ใหม่ นจ1491', 'รถตู้เก่า นง4729', 'รถกะบะ นจ1093', 'รถบรรทุก 6 ล้อ 40-0431'
+            ];
 
-            {/* Passenger and Destination */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="numTeachers" className="block text-gray-700 font-medium mb-1">จำนวนครู 🧑‍🏫 <span className="text-red-500">*</span></label>
-                <input
-                  type="number"
-                  id="numTeachers"
-                  name="numTeachers"
-                  value={formData.numTeachers}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  min="0"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="numStudents" className="block text-gray-700 font-medium mb-1">จำนวนนักเรียน 👧👦 <span className="text-red-500">*</span></label>
-                <input
-                  type="number"
-                  id="numStudents"
-                  name="numStudents"
-                  value={formData.numStudents}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  min="0"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="distance" className="block text-gray-700 font-medium mb-1">ระยะทางไปกลับ (กิโลเมตร) 🛣️ <span className="text-red-500">*</span></label>
-                <input
-                  type="number"
-                  id="distance"
-                  name="distance"
-                  value={formData.distance}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                  min="0"
-                  required
-                />
-              </div>
-            </div>
+            // Function to format date to Thai Buddhist Era (พ.ศ.)
+            const formatThaiDate = (dateString) => {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                // Adjust year for B.E. if needed (Google Sheet often gives Gregorian, so no adjustment here)
+                return date.toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                });
+            };
 
-            <div>
-              <label htmlFor="destination" className="block text-gray-700 font-medium mb-1">สถานที่ไป 📍 <span className="text-red-500">*</span></label>
-              <textarea
-                id="destination"
-                name="destination"
-                value={formData.destination}
-                onChange={handleChange}
-                rows="3"
-                className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 resize-y"
-                placeholder="เช่น โรงเรียน... เพื่อเข้าร่วมประชุม..."
-                required
-              ></textarea>
-            </div>
+            // Function to format time
+            const formatTime = (timeString) => {
+                if (!timeString) return '';
+                // Assuming timeString is in "HH:MM" format
+                const [hours, minutes] = timeString.split(':');
+                return `${hours}:${minutes} น.`;
+            };
 
-            {/* Attachment */}
-            <div>
-              <label htmlFor="attachment" className="block text-gray-700 font-medium mb-1">เอกสารประกอบ (รูปภาพ/PDF) 📎</label>
-              <input
-                type="file"
-                id="attachment"
-                name="attachment"
-                accept="image/*,.pdf"
-                onChange={handleChange}
-                ref={fileInputRef}
-                className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-100 file:text-red-700 hover:file:bg-red-200"
-              />
-              {formData.attachment && (
-                <p className="text-sm text-gray-500 mt-2">ไฟล์ที่เลือก: {formData.attachment.name}</p>
-              )}
-            </div>
+            // Fetch bookings on component mount and when active tab changes to 'schedule' or 'stats'
+            useEffect(() => {
+                if (activeTab === 'schedule' || activeTab === 'stats' || activeTab === 'print') {
+                    fetchBookings();
+                }
+            }, [activeTab]);
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold text-lg hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-300 transition-all duration-300 ease-in-out transform hover:scale-105 shadow-md"
-              disabled={isLoading}
-            >
-              {isLoading ? 'กำลังส่งข้อมูล... 🔄' : 'ส่งคำขอจองรถ ✅'}
-            </button>
-          </form>
-        )}
+            // Function to fetch booking data from Google Sheet
+            const fetchBookings = async () => {
+                setIsLoading(true);
+                try {
+                    const response = await fetch(`${SCRIPT_URL}?action=getAllBookings&sheetId=${SHEET_ID}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data && Array.isArray(data.data)) {
+                        // Map data to a more usable format and parse dates
+                        const formattedData = data.data.map(row => {
+                            const startDate = new Date(row['วันที่เริ่ม']);
+                            const endDate = new Date(row['วันที่สิ้นสุด']);
+                            return {
+                                ...row,
+                                startDateObj: startDate,
+                                endDateObj: endDate,
+                                // Combine date and time for full timestamp objects for easier comparison
+                                startDateTime: new Date(`${row['วันที่เริ่ม']}T${row['เวลาเริ่มต้น']}`),
+                                endDateTime: new Date(`${row['วันที่สิ้นสุด']}T${row['เวลาสิ้นสุด']}`),
+                            };
+                        });
+                        setBookings(formattedData);
+                    } else {
+                        setBookings([]);
+                    }
+                } catch (error) {
+                    console.error('Error fetching bookings:', error);
+                    showMessage('เกิดข้อผิดพลาดในการดึงข้อมูลการจอง 😥', 'error');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
 
-        {/* Tab 2: Booking Schedule */}
-        {activeTab === 'schedule' && (
-          <div className="p-4">
-            <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">ตารางแสดงการจองรถ 📅</h2>
-            <div className="flex justify-between items-center mb-6 bg-red-100 p-3 rounded-lg shadow-inner">
-              <button
-                onClick={handlePrevMonth}
-                className="bg-red-300 text-red-900 p-2 rounded-full hover:bg-red-400 transition-colors duration-200 transform hover:scale-110"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h3 className="text-xl font-semibold text-red-800 animate-fade-in">
-                {new Date(currentYear, currentMonth).toLocaleString('th-TH', { month: 'long', year: 'numeric' })}
-              </h3>
-              <button
-                onClick={handleNextMonth}
-                className="bg-red-300 text-red-900 p-2 rounded-full hover:bg-red-400 transition-colors duration-200 transform hover:scale-110"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
+            // Handle form input changes
+            const handleChange = (e) => {
+                const { name, value, type, files } = e.target;
+                if (type === 'file') {
+                    setFormData({ ...formData, [name]: files[0] });
+                } else {
+                    setFormData({ ...formData, [name]: value });
+                }
+            };
 
-            <div className="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-red-700 mb-2">
-              <div>อาทิตย์</div>
-              <div>จันทร์</div>
-              <div>อังคาร</div>
-              <div>พุธ</div>
-              <div>พฤหัสบดี</div>
-              <div>ศุกร์</div>
-              <div>เสาร์</div>
-            </div>
+            // Show a message to the user for a short period
+            const showMessage = (msg, type) => {
+                setMessage(msg);
+                setMessageType(type);
+                setTimeout(() => {
+                    setMessage('');
+                    setMessageType('');
+                }, 5000); // Message disappears after 5 seconds
+            };
 
-            <div className="grid grid-cols-7 gap-2">
-              {getCalendarDays().map((day, index) => {
-                const dayBookings = day ? getBookingsForDay(day) : [];
-                const isBooked = dayBookings.length > 0;
+            // Handle form submission
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setIsLoading(true);
+                setMessage('');
+                setMessageType('');
+
+                // Form validation
+                for (const key in formData) {
+                    if (key !== 'attachment' && formData[key] === '') {
+                        showMessage('กรุณากรอกข้อมูลให้ครบถ้วนก่อนส่ง ⚠️', 'error');
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+
+                // Date/Time validation
+                const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`);
+                const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
+
+                if (startDateTime >= endDateTime) {
+                    showMessage('วันที่และเวลาสิ้นสุดต้องอยู่หลังวันที่และเวลาเริ่มต้น 🗓️⏰', 'error');
+                    setIsLoading(false);
+                    return;
+                }
+                if (startDateTime < new Date()) {
+                    showMessage('วันที่และเวลาเริ่มต้นต้องไม่เป็นอดีต ⏳', 'error');
+                    setIsLoading(false);
+                    return;
+                }
+
+                const dataToSend = new FormData();
+                dataToSend.append('action', 'addBooking');
+                dataToSend.append('sheetId', SHEET_ID);
+                dataToSend.append('folderId', DRIVE_FOLDER_ID); // Google Drive folder ID
+
+                // Append all form data fields
+                for (const key in formData) {
+                    if (key !== 'attachment') {
+                        dataToSend.append(key, formData[key]);
+                    }
+                }
+
+                // Handle file upload
+                if (formData.attachment) {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const base64Data = event.target.result.split(',')[1]; // Get base64 string
+                        dataToSend.append('attachmentData', base64Data);
+                        dataToSend.append('attachmentName', formData.attachment.name);
+
+                        try {
+                            // Send data to Google App Script
+                            const response = await fetch(SCRIPT_URL, {
+                                method: 'POST',
+                                body: dataToSend,
+                            });
+
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+
+                            const result = await response.json();
+                            if (result.success) {
+                                showMessage('การจองรถสำเร็จ! ✅', 'success');
+                                // Clear form after successful submission
+                                setFormData({
+                                    fullName: '',
+                                    position: 'ข้าราชการครู',
+                                    phoneNumber: '',
+                                    department: 'วิชาการ',
+                                    carType: 'รถตู้ใหม่ นจ1491',
+                                    startDate: '',
+                                    startTime: '',
+                                    endDate: '',
+                                    endTime: '',
+                                    numTeachers: '',
+                                    numStudents: '',
+                                    distance: '',
+                                    driverOption: 'พนักงานขับรถ',
+                                    destination: '',
+                                    attachment: null,
+                                });
+                                if (fileInputRef.current) {
+                                    fileInputRef.current.value = ''; // Clear file input
+                                }
+                                fetchBookings(); // Refresh bookings to update calendar/stats
+                            } else {
+                                showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Error submitting form:', error);
+                            showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล 🤯', 'error');
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    };
+                    reader.readAsDataURL(formData.attachment); // Read file as base64
+                } else {
+                    // If no attachment, just send other data
+                    try {
+                        const response = await fetch(SCRIPT_URL, {
+                            method: 'POST',
+                            body: dataToSend,
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const result = await response.json();
+                        if (result.success) {
+                            showMessage('การจองรถสำเร็จ! ✅', 'success');
+                            setFormData({
+                                fullName: '',
+                                position: 'ข้าราชการครู',
+                                phoneNumber: '',
+                                department: 'วิชาการ',
+                                carType: 'รถตู้ใหม่ นจ1491',
+                                startDate: '',
+                                startTime: '',
+                                endDate: '',
+                                endTime: '',
+                                numTeachers: '',
+                                numStudents: '',
+                                distance: '',
+                                driverOption: 'พนักงานขับรถ',
+                                destination: '',
+                                attachment: null,
+                            });
+                            if (fileInputRef.current) {
+                                fileInputRef.current.value = '';
+                            }
+                            fetchBookings();
+                        } else {
+                            showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error submitting form:', error);
+                        showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล 🤯', 'error');
+                    } finally {
+                        setIsLoading(false);
+                    }
+                }
+            };
+
+            // Calendar logic
+            const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+            const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
+            const daysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+            const firstDayOfMonth = (month, year) => new Date(year, month, 1).getDay(); // 0 for Sunday, 1 for Monday
+
+            const getCalendarDays = () => {
+                const totalDays = daysInMonth(currentMonth, currentYear);
+                const startDay = firstDayOfMonth(currentMonth, currentYear);
+                const days = [];
+
+                // Add empty cells for days before the 1st of the month
+                for (let i = 0; i < startDay; i++) {
+                    days.push(null);
+                }
+
+                // Add actual days of the month
+                for (let i = 1; i <= totalDays; i++) {
+                    days.push(i);
+                }
+                return days;
+            };
+
+            const handlePrevMonth = () => {
+                setCurrentMonth(prevMonth => (prevMonth === 0 ? 11 : prevMonth - 1));
+                setCurrentYear(prevMonth => (prevMonth === 0 ? prevMonth - 1 : prevMonth));
+            };
+
+            const handleNextMonth = () => {
+                setCurrentMonth(prevMonth => (prevMonth === 11 ? 0 : prevMonth + 1));
+                setCurrentYear(prevMonth => (prevMonth === 11 ? prevMonth + 1 : prevMonth));
+            };
+
+            // Get bookings for a specific day
+            const getBookingsForDay = (day) => {
+                if (!day) return [];
+                const date = new Date(currentYear, currentMonth, day);
+                return bookings.filter(booking => {
+                    // Check if the booking period spans across the selected date
+                    return booking.startDateObj <= date && booking.endDateObj >= date;
+                });
+            };
+
+            // Handle clicking on a day in the calendar
+            const handleDayClick = (day) => {
+                if (day) {
+                    setSelectedDateBookings(getBookingsForDay(day));
+                    setIsModalOpen(true);
+                }
+            };
+
+            // Statistics calculation (simplified for single HTML file without recharts)
+            const getMonthlyUsage = () => {
+                const monthlyData = {};
+                bookings.forEach(booking => {
+                    const startMonth = booking.startDateObj.getMonth();
+                    const startYear = booking.startDateObj.getFullYear();
+                    const endMonth = booking.endDateObj.getMonth();
+
+                    let currentDate = new Date(booking.startDateObj);
+                    while (currentDate <= booking.endDateObj) {
+                        const monthYearKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+                        if (!monthlyData[monthYearKey]) {
+                            // Use full month name and year (B.E.) for display
+                            monthlyData[monthYearKey] = {
+                                month: currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }),
+                                usageDays: 0
+                            };
+                        }
+                        monthlyData[monthYearKey].usageDays++;
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                });
+
+                // Convert to array and sort by year and month
+                return Object.entries(monthlyData)
+                    .map(([key, value]) => ({
+                        sortKey: key, // For internal sorting
+                        month: value.month, // For display
+                        usageDays: value.usageDays
+                    }))
+                    .sort((a, b) => {
+                        const [aYear, aMonth] = a.sortKey.split('-').map(Number);
+                        const [bYear, bMonth] = b.sortKey.split('-').map(Number);
+                        return (aYear - bYear) || (aMonth - bMonth);
+                    });
+            };
+
+            const getCarUsageStats = () => {
+                const carStats = {};
+                bookings.forEach(booking => {
+                    const car = booking['รถที่ต้องการใช้'];
+                    if (car) {
+                        carStats[car] = (carStats[car] || 0) + 1;
+                    }
+                });
+                return Object.keys(carStats).map(car => ({ name: car, value: carStats[car] }));
+            };
+
+            const getDepartmentUsageStats = () => {
+                const departmentStats = {};
+                bookings.forEach(booking => {
+                    const department = booking['กลุ่มงาน/กลุ่มสาระฯ'];
+                    if (department) {
+                        departmentStats[department] = (departmentStats[department] || 0) + 1;
+                    }
+                });
+                return Object.keys(departmentStats).map(dept => ({ name: dept, value: departmentStats[dept] }));
+            };
+
+            const getDestinationUsageStats = () => {
+                const destinationStats = {};
+                bookings.forEach(booking => {
+                    const destination = booking['สถานที่ไป'];
+                    if (destination) {
+                        destinationStats[destination] = (destinationStats[destination] || 0) + 1;
+                    }
+                });
+                return Object.keys(destinationStats).map(dest => ({ name: dest, value: destinationStats[dest] }));
+            };
+
+            // Memo generation
+            const handleGenerateMemo = (booking) => {
+                setMemoData(booking);
+                setActiveTab('memo-preview'); // Switch to a new tab/view for memo preview
+            };
+
+            const handlePrint = () => {
+                window.print();
+            };
+
+            const COLORS = ['#FFCDD2', '#EF9A9A', '#E57373', '#EF5350', '#F44336', '#D32F2F', '#C62828', '#B71C1C']; // Shades of pastel red
+
+            // Simple SVG Bar Chart Component
+            const SimpleBarChart = ({ data, dataKey, valueKey, title }) => {
+                if (!data || data.length === 0) return <p className="text-gray-600 text-center">ไม่มีข้อมูล {title} 😔</p>;
+
+                const maxValue = Math.max(...data.map(d => d[valueKey]));
+                const barWidth = 30;
+                const gap = 10;
+                const chartWidth = data.length * (barWidth + gap);
+                const chartHeight = 200;
+                const scaleY = chartHeight / (maxValue > 0 ? maxValue : 1);
+
                 return (
-                  <div
-                    key={index}
-                    className={`p-2 h-20 rounded-lg flex flex-col items-center justify-center transition-all duration-200 cursor-pointer calendar-day-hover
-                      ${day ? 'bg-red-50 text-red-800 shadow-sm' : 'bg-gray-50 text-gray-400'}
-                      ${isBooked ? 'bg-red-200 font-bold border-2 border-red-400 animate-pulse-fade' : ''}
-                    `}
-                    onClick={() => handleDayClick(day)}
-                  >
-                    {day && (
-                      <>
-                        <span className="text-lg font-bold">{day}</span>
-                        {isBooked && (
-                          <div className="mt-1 text-xs text-red-900">
-                            {dayBookings.map((b, i) => (
-                              <p key={i} className="leading-tight">{b['ชื่อ-สกุล ผู้จอง']} ({b['รถที่ต้องการใช้'].split(' ')[0]})</p>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    <div className="flex flex-col items-center">
+                        <svg width="100%" height={chartHeight + 50} viewBox={`0 0 ${chartWidth + 100} ${chartHeight + 50}`}>
+                            {/* Y-axis */}
+                            <line x1="50" y1="0" x2="50" y2={chartHeight} stroke="#333" />
+                            {/* X-axis */}
+                            <line x1="50" y1={chartHeight} x2={chartWidth + 50} y2={chartHeight} stroke="#333" />
 
-            {/* Booking Details Modal */}
-            {isModalOpen && (
-              <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in">
-                <div className="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full transform transition-transform duration-300 modal-enter-active">
-                  <h3 className="text-2xl font-bold text-red-700 mb-4 text-center">รายละเอียดการจองในวันนี้ 🗓️</h3>
-                  {selectedDateBookings.length > 0 ? (
-                    <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                      {selectedDateBookings.map((booking, index) => (
-                        <div key={index} className="bg-red-50 p-4 rounded-lg border border-red-200 shadow-sm">
-                          <p><span className="font-semibold text-red-700">ผู้จอง:</span> {booking['ชื่อ-สกุล ผู้จอง']} ✨</p>
-                          <p><span className="font-semibold text-red-700">รถที่ใช้:</span> {booking['รถที่ต้องการใช้']} 🚌</p>
-                          <p><span className="font-semibold text-red-700">ตั้งแต่:</span> {booking['วันที่เริ่ม']} {booking['เวลาเริ่มต้น']} ➡️ {booking['วันที่สิ้นสุด']} {booking['เวลาสิ้นสุด']} ⏱️</p>
-                          <p><span className="font-semibold text-red-700">สถานที่:</span> {booking['สถานที่ไป']} 🗺️</p>
-                          {booking.attachmentUrl && (
-                            <a
-                              href={booking.attachmentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-red-500 hover:underline flex items-center mt-2"
-                            >
-                              ดูเอกสารแนบ <span className="ml-1">🔗</span>
-                            </a>
-                          )}
-                        </div>
-                      ))}
+                            {/* Bars and X-axis labels */}
+                            {data.map((d, i) => {
+                                const x = 50 + i * (barWidth + gap);
+                                const barHeight = d[valueKey] * scaleY;
+                                const y = chartHeight - barHeight;
+                                return (
+                                    <React.Fragment key={i}>
+                                        <rect x={x} y={y} width={barWidth} height={barHeight} fill={COLORS[i % COLORS.length]} rx="5" ry="5" />
+                                        <text x={x + barWidth / 2} y={chartHeight + 15} textAnchor="middle" fontSize="12" fill="#555">
+                                            {d[dataKey].length > 10 ? d[dataKey].substring(0, 10) + '...' : d[dataKey]}
+                                        </text>
+                                        <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fontSize="12" fill="#333">
+                                            {d[valueKey]}
+                                        </text>
+                                    </React.Fragment>
+                                );
+                            })}
+                        </svg>
+                        <p className="text-center text-sm text-gray-500 mt-2">({title})</p>
                     </div>
-                  ) : (
-                    <p className="text-gray-600 text-center">ไม่มีการจองในวันนี้ 😴</p>
-                  )}
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    className="mt-6 w-full bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors duration-200 shadow-md transform hover:scale-105"
-                  >
-                    ปิด ❌
-                  </button>
+                );
+            };
+
+            // Simple SVG Pie Chart Component
+            const SimplePieChart = ({ data }) => {
+                if (!data || data.length === 0) return <p className="text-gray-600 text-center">ไม่มีข้อมูล 😔</p>;
+
+                const total = data.reduce((sum, entry) => sum + entry.value, 0);
+                let startAngle = 0;
+
+                return (
+                    <svg width="100%" height="250" viewBox="0 0 200 200" className="mx-auto">
+                        {data.map((entry, index) => {
+                            const endAngle = startAngle + (entry.value / total) * 360;
+                            const largeArcFlag = entry.value / total > 0.5 ? 1 : 0;
+
+                            const x1 = 100 + 90 * Math.cos(Math.PI * startAngle / 180);
+                            const y1 = 100 + 90 * Math.sin(Math.PI * startAngle / 180);
+                            const x2 = 100 + 90 * Math.cos(Math.PI * endAngle / 180);
+                            const y2 = 100 + 90 * Math.sin(Math.PI * endAngle / 180);
+
+                            const d = [
+                                `M 100,100`,
+                                `L ${x1},${y1}`,
+                                `A 90,90 0 ${largeArcFlag} 1 ${x2},${y2}`,
+                                `Z`
+                            ].join(' ');
+
+                            const midAngle = startAngle + (entry.value / total) * 180;
+                            const labelX = 100 + 110 * Math.cos(Math.PI * midAngle / 180);
+                            const labelY = 100 + 110 * Math.sin(Math.PI * midAngle / 180);
+
+                            const percentage = (entry.value / total * 100).toFixed(0);
+
+                            startAngle = endAngle;
+
+                            return (
+                                <React.Fragment key={`pie-slice-${index}`}>
+                                    <path d={d} fill={COLORS[index % COLORS.length]} />
+                                    <text x={labelX} y={labelY} textAnchor="middle" alignmentBaseline="middle" fontSize="10" fill="#333">
+                                        {`${entry.name} (${percentage}%)`}
+                                    </text>
+                                </React.Fragment>
+                            );
+                        })}
+                    </svg>
+                );
+            };
+
+
+            return (
+                <div className="min-h-screen bg-pink-50 font-sarabun text-gray-800 flex flex-col items-center p-4 sm:p-6 transition-all duration-300 ease-in-out animate-fade-in">
+                    {/* Header Section */}
+                    <header className="w-full max-w-4xl bg-white shadow-lg rounded-2xl p-4 sm:p-6 mb-8 flex flex-col md:flex-row items-center justify-between animate-fade-in">
+                        <div className="flex items-center mb-4 md:mb-0">
+                            <img src="https://img2.pic.in.th/pic/logo-HDR.md.png" alt="โลโก้โรงเรียน" className="h-16 w-16 mr-4 rounded-lg shadow-md" />
+                            <div>
+                                <h1 className="text-3xl sm:text-4xl font-bold text-red-700 leading-tight">
+                                    ระบบขออนุมัติใช้รถไปราชการ 🚗
+                                </h1>
+                                <p className="text-base sm:text-lg text-gray-600">โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
+                            </div>
+                        </div>
+                        {/* Navigation Tabs */}
+                        <nav className="flex flex-wrap justify-center md:justify-end gap-2 sm:gap-4 mt-4 md:mt-0">
+                            <button
+                                className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
+                                  ${activeTab === 'request' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
+                                `}
+                                onClick={() => setActiveTab('request')}
+                            >
+                                กรอกข้อมูลจองรถ 📝
+                            </button>
+                            <button
+                                className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
+                                  ${activeTab === 'schedule' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
+                                `}
+                                onClick={() => setActiveTab('schedule')}
+                            >
+                                ตารางแสดงการจองรถ 📅
+                            </button>
+                            <button
+                                className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
+                                  ${activeTab === 'stats' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
+                                `}
+                                onClick={() => setActiveTab('stats')}
+                            >
+                                สถิติการใช้รถ 📊
+                            </button>
+                            <button
+                                className={`tab-button px-4 py-2 rounded-xl text-sm sm:text-base font-medium shadow-md transition-all duration-300 ease-in-out
+                                  ${activeTab === 'print' ? 'bg-red-300 text-red-900 active' : 'bg-red-100 text-red-700 hover:bg-red-200'}
+                                `}
+                                onClick={() => setActiveTab('print')}
+                            >
+                                พิมพ์บันทึกข้อความ 📄
+                            </button>
+                        </nav>
+                    </header>
+
+                    {/* Main Content Area */}
+                    <main className="w-full max-w-4xl bg-white shadow-lg rounded-2xl p-4 sm:p-8 mb-8 animate-fade-in">
+                        {isLoading && (
+                            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
+                                <div className="flex flex-col items-center bg-white p-6 rounded-lg shadow-xl">
+                                    <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
+                                    <p className="text-red-700 text-lg font-semibold">กำลังโหลด... โปรดรอสักครู่ ⏳</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {message && (
+                            <div className={`p-3 rounded-lg mb-4 text-center text-sm sm:text-base animate-fade-in ${messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {message}
+                            </div>
+                        )}
+
+                        {/* Tab 1: Car Request Form */}
+                        {activeTab === 'request' && (
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">แบบฟอร์มขออนุมัติใช้รถราชการ 📝</h2>
+
+                                {/* General Info */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="fullName" className="block text-gray-700 font-medium mb-1">ชื่อ-สกุล ผู้จอง <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="text"
+                                            id="fullName"
+                                            name="fullName"
+                                            value={formData.fullName}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            placeholder="เช่น สมชาย ใจดี"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="position" className="block text-gray-700 font-medium mb-1">ตำแหน่ง <span className="text-red-500">*</span></label>
+                                        <select
+                                            id="position"
+                                            name="position"
+                                            value={formData.position}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 bg-white"
+                                            required
+                                        >
+                                            {positions.map(option => (
+                                                <option key={option} value={option}>{option}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="phoneNumber" className="block text-gray-700 font-medium mb-1">เบอร์โทร 📞 <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="tel"
+                                            id="phoneNumber"
+                                            name="phoneNumber"
+                                            value={formData.phoneNumber}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            placeholder="เช่น 08XXXXXXXX"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="department" className="block text-gray-700 font-medium mb-1">กลุ่มงาน/กลุ่มสาระฯ 🏫 <span className="text-red-500">*</span></label>
+                                        <select
+                                            id="department"
+                                            name="department"
+                                            value={formData.department}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 bg-white"
+                                            required
+                                        >
+                                            {departments.map(option => (
+                                                <option key={option} value={option}>{option}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Car Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="carType" className="block text-gray-700 font-medium mb-1">รถที่ต้องการใช้ 🚌 <span className="text-red-500">*</span></label>
+                                        <select
+                                            id="carType"
+                                            name="carType"
+                                            value={formData.carType}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 bg-white"
+                                            required
+                                        >
+                                            {carTypes.map(option => (
+                                                <option key={option} value={option}>{option}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex space-x-4">
+                                        <div className="w-1/2">
+                                            <label className="block text-gray-700 font-medium mb-1">ขับขี่โดย 🧑‍✈️ <span className="text-red-500">*</span></label>
+                                            <div className="flex items-center space-x-4 h-full">
+                                                <label className="inline-flex items-center">
+                                                    <input
+                                                        type="radio"
+                                                        name="driverOption"
+                                                        value="พนักงานขับรถ"
+                                                        checked={formData.driverOption === 'พนักงานขับรถ'}
+                                                        onChange={handleChange}
+                                                        className="form-radio text-red-500 h-5 w-5"
+                                                    />
+                                                    <span className="ml-2 text-gray-700">พนักงานขับรถ</span>
+                                                </label>
+                                                <label className="inline-flex items-center">
+                                                    <input
+                                                        type="radio"
+                                                        name="driverOption"
+                                                        value="ข้าพเจ้า"
+                                                        checked={formData.driverOption === 'ข้าพเจ้า'}
+                                                        onChange={handleChange}
+                                                        className="form-radio text-red-500 h-5 w-5"
+                                                    />
+                                                    <span className="ml-2 text-gray-700">ข้าพเจ้า</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Date and Time */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="startDate" className="block text-gray-700 font-medium mb-1">วันที่เริ่ม 🗓️ <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="date"
+                                            id="startDate"
+                                            name="startDate"
+                                            value={formData.startDate}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="startTime" className="block text-gray-700 font-medium mb-1">เวลาเริ่มต้น ⏰ <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="time"
+                                            id="startTime"
+                                            name="startTime"
+                                            value={formData.startTime}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="endDate" className="block text-gray-700 font-medium mb-1">วันที่สิ้นสุด 🗓️ <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="date"
+                                            id="endDate"
+                                            name="endDate"
+                                            value={formData.endDate}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="endTime" className="block text-gray-700 font-medium mb-1">เวลาสิ้นสุด ⏰ <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="time"
+                                            id="endTime"
+                                            name="endTime"
+                                            value={formData.endTime}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Passenger and Destination */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="numTeachers" className="block text-gray-700 font-medium mb-1">จำนวนครู 🧑‍🏫 <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="number"
+                                            id="numTeachers"
+                                            name="numTeachers"
+                                            value={formData.numTeachers}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            min="0"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="numStudents" className="block text-gray-700 font-medium mb-1">จำนวนนักเรียน 👧👦 <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="number"
+                                            id="numStudents"
+                                            name="numStudents"
+                                            value={formData.numStudents}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            min="0"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="distance" className="block text-gray-700 font-medium mb-1">ระยะทางไปกลับ (กิโลเมตร) 🛣️ <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="number"
+                                            id="distance"
+                                            name="distance"
+                                            value={formData.distance}
+                                            onChange={handleChange}
+                                            className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                            min="0"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="destination" className="block text-gray-700 font-medium mb-1">สถานที่ไป 📍 <span className="text-red-500">*</span></label>
+                                    <textarea
+                                        id="destination"
+                                        name="destination"
+                                        value={formData.destination}
+                                        onChange={handleChange}
+                                        rows="3"
+                                        className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 resize-y"
+                                        placeholder="เช่น โรงเรียน... เพื่อเข้าร่วมประชุม..."
+                                        required
+                                    ></textarea>
+                                </div>
+
+                                {/* Attachment */}
+                                <div>
+                                    <label htmlFor="attachment" className="block text-gray-700 font-medium mb-1">เอกสารประกอบ (รูปภาพ/PDF) 📎</label>
+                                    <input
+                                        type="file"
+                                        id="attachment"
+                                        name="attachment"
+                                        accept="image/*,.pdf"
+                                        onChange={handleChange}
+                                        ref={fileInputRef}
+                                        className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-100 file:text-red-700 hover:file:bg-red-200"
+                                    />
+                                    {formData.attachment && (
+                                        <p className="text-sm text-gray-500 mt-2">ไฟล์ที่เลือก: {formData.attachment.name}</p>
+                                    )}
+                                </div>
+
+                                {/* Submit Button */}
+                                <button
+                                    type="submit"
+                                    className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold text-lg hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-300 transition-all duration-300 ease-in-out transform hover:scale-105 shadow-md"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? 'กำลังส่งข้อมูล... 🔄' : 'ส่งคำขอจองรถ ✅'}
+                                </button>
+                            </form>
+                        )}
+
+                        {/* Tab 2: Booking Schedule */}
+                        {activeTab === 'schedule' && (
+                            <div className="p-4">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">ตารางแสดงการจองรถ 📅</h2>
+                                <div className="flex justify-between items-center mb-6 bg-red-100 p-3 rounded-lg shadow-inner">
+                                    <button
+                                        onClick={handlePrevMonth}
+                                        className="bg-red-300 text-red-900 p-2 rounded-full hover:bg-red-400 transition-colors duration-200 transform hover:scale-110"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                    </button>
+                                    <h3 className="text-xl font-semibold text-red-800 animate-fade-in">
+                                        {new Date(currentYear, currentMonth).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+                                    </h3>
+                                    <button
+                                        onClick={handleNextMonth}
+                                        className="bg-red-300 text-red-900 p-2 rounded-full hover:bg-red-400 transition-colors duration-200 transform hover:scale-110"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-red-700 mb-2">
+                                    <div>อาทิตย์</div>
+                                    <div>จันทร์</div>
+                                    <div>อังคาร</div>
+                                    <div>พุธ</div>
+                                    <div>พฤหัสบดี</div>
+                                    <div>ศุกร์</div>
+                                    <div>เสาร์</div>
+                                </div>
+
+                                <div className="grid grid-cols-7 gap-2">
+                                    {getCalendarDays().map((day, index) => {
+                                        const dayBookings = day ? getBookingsForDay(day) : [];
+                                        const isBooked = dayBookings.length > 0;
+                                        return (
+                                            <div
+                                                key={index}
+                                                className={`p-2 h-20 rounded-lg flex flex-col items-center justify-center transition-all duration-200 cursor-pointer calendar-day-hover
+                                                  ${day ? 'bg-red-50 text-red-800 shadow-sm' : 'bg-gray-50 text-gray-400'}
+                                                  ${isBooked ? 'bg-red-200 font-bold border-2 border-red-400 animate-pulse-fade' : ''}
+                                                `}
+                                                onClick={() => handleDayClick(day)}
+                                            >
+                                                {day && (
+                                                    <>
+                                                        <span className="text-lg font-bold">{day}</span>
+                                                        {isBooked && (
+                                                            <div className="mt-1 text-xs text-red-900">
+                                                                {dayBookings.map((b, i) => (
+                                                                    <p key={i} className="leading-tight">{b['ชื่อ-สกุล ผู้จอง']} ({b['รถที่ต้องการใช้'].split(' ')[0]})</p>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Booking Details Modal */}
+                                {isModalOpen && (
+                                    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in">
+                                        <div className="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full transform transition-transform duration-300 modal-enter-active">
+                                            <h3 className="text-2xl font-bold text-red-700 mb-4 text-center">รายละเอียดการจองในวันนี้ 🗓️</h3>
+                                            {selectedDateBookings.length > 0 ? (
+                                                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                                                    {selectedDateBookings.map((booking, index) => (
+                                                        <div key={index} className="bg-red-50 p-4 rounded-lg border border-red-200 shadow-sm">
+                                                            <p><span className="font-semibold text-red-700">ผู้จอง:</span> {booking['ชื่อ-สกุล ผู้จอง']} ✨</p>
+                                                            <p><span className="font-semibold text-red-700">รถที่ใช้:</span> {booking['รถที่ต้องการใช้']} 🚌</p>
+                                                            <p><span className="font-semibold text-red-700">ตั้งแต่:</span> {formatThaiDate(booking['วันที่เริ่ม'])} {formatTime(booking['เวลาเริ่มต้น'])} ➡️ {formatThaiDate(booking['วันที่สิ้นสุด'])} {formatTime(booking['เวลาสิ้นสุด'])} ⏱️</p>
+                                                            <p><span className="font-semibold text-red-700">สถานที่:</span> {booking['สถานที่ไป']} 🗺️</p>
+                                                            {booking['เอกสารประกอบ (URL)'] && (
+                                                                <a
+                                                                    href={booking['เอกสารประกอบ (URL)']}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-red-500 hover:underline flex items-center mt-2"
+                                                                >
+                                                                    ดูเอกสารแนบ <span className="ml-1">🔗</span>
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-600 text-center">ไม่มีการจองในวันนี้ 😴</p>
+                                            )}
+                                            <button
+                                                onClick={() => setIsModalOpen(false)}
+                                                className="mt-6 w-full bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors duration-200 shadow-md transform hover:scale-105"
+                                            >
+                                                ปิด ❌
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Tab 3: Usage Statistics */}
+                        {activeTab === 'stats' && (
+                            <div className="p-4">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">สถิติการใช้รถ 📊</h2>
+                                <div className="space-y-8">
+                                    {/* Monthly Usage */}
+                                    <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in">
+                                        <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">จำนวนวันใช้งานในแต่ละเดือน 🗓️</h3>
+                                        <SimpleBarChart data={getMonthlyUsage()} dataKey="month" valueKey="usageDays" title="จำนวนวันใช้งาน" />
+                                    </div>
+
+                                    {/* Car Usage */}
+                                    <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in delay-100">
+                                        <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">สถิติรถที่จอง 🚗</h3>
+                                        <SimplePieChart data={getCarUsageStats()} />
+                                    </div>
+
+                                    {/* Department Usage */}
+                                    <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in delay-200">
+                                        <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">สถิติการจองตามกลุ่มงาน/กลุ่มสาระฯ 🧑‍💻</h3>
+                                        <SimplePieChart data={getDepartmentUsageStats()} />
+                                    </div>
+
+                                    {/* Destination Usage */}
+                                    <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in delay-300">
+                                        <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">สถิติการจองตามสถานที่ไป 🗺️</h3>
+                                        <SimpleBarChart data={getDestinationUsageStats()} dataKey="name" valueKey="value" title="จำนวนครั้ง" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Tab 4: Print Memo */}
+                        {activeTab === 'print' && (
+                            <div className="p-4">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">พิมพ์บันทึกข้อความ 📄</h2>
+                                {bookings.length > 0 ? (
+                                    <div className="overflow-x-auto rounded-lg shadow-md border border-red-100">
+                                        <table className="min-w-full bg-white rounded-lg">
+                                            <thead className="bg-red-200 text-red-900">
+                                                <tr>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider rounded-tl-lg">ชื่อผู้จอง</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">รถที่จอง</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">วันที่เริ่ม</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider rounded-tr-lg">บันทึกข้อความ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-red-100">
+                                                {bookings.map((booking, index) => (
+                                                    <tr key={index} className="hover:bg-red-50 transition-colors duration-150">
+                                                        <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['ชื่อ-สกุล ผู้จอง']}</td>
+                                                        <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['รถที่ต้องการใช้']}</td>
+                                                        <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatThaiDate(booking['วันที่เริ่ม'])}</td>
+                                                        <td className="py-3 px-4 whitespace-nowrap">
+                                                            <button
+                                                                onClick={() => handleGenerateMemo(booking)}
+                                                                className="bg-red-500 text-white py-1.5 px-3 rounded-lg text-sm font-semibold hover:bg-red-600 transition-all duration-200 shadow-md transform hover:scale-105"
+                                                            >
+                                                                คลิก 📝
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-600 text-center">ไม่มีข้อมูลการจองเพื่อพิมพ์บันทึกข้อความ 😔</p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Memo Preview/Print Section (Hidden from main tabs, only shown when memoData is set) */}
+                        {activeTab === 'memo-preview' && memoData && (
+                            <div className="p-4 print-area"> {/* Add print-area class for printing */}
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">บันทึกข้อความขออนุมัติใช้รถราชการ 📄</h2>
+                                <div className="bg-red-50 p-6 rounded-xl shadow-lg border border-red-200 space-y-4 text-gray-800">
+                                    <p className="text-right text-sm">วันที่: {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                    <p className="font-semibold text-lg">เรื่อง: ขออนุมัติใช้รถราชการ</p>
+                                    <p className="font-semibold text-lg">เรียน: ผู้อำนวยการโรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
+                                    <div className="leading-relaxed">
+                                        <p>สิ่งที่ส่งมาด้วย: {memoData['เอกสารประกอบ (URL)'] ? <a href={memoData['เอกสารประกอบ (URL)']} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline">เอกสารประกอบ</a> : 'ไม่มีเอกสารแนบ'} </p>
+                                        <br />
+                                        <p>เนื่องด้วย <span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span> ตำแหน่ง <span className="font-semibold">{memoData['ตำแหน่ง']}</span>
+                                            กลุ่มงาน/กลุ่มสาระฯ <span className="font-semibold">{memoData['กลุ่มงาน/กลุ่มสาระฯ']}</span> เบอร์โทรศัพท์ <span className="font-semibold">{memoData['เบอร์โทร']}</span>
+                                            มีความประสงค์ขอใช้รถราชการประเภท <span className="font-semibold">{memoData['รถที่ต้องการใช้']}</span> เพื่อไป
+                                            <span className="font-semibold"> {memoData['สถานที่ไป']}</span></p>
+                                        <p>จำนวนครู <span className="font-semibold">{memoData['จำนวนครู']}</span> คน, จำนวนนักเรียน <span className="font-semibold">{memoData['จำนวนนักเรียน']}</span> คน</p>
+                                        <p>ในระหว่างวันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่เริ่ม'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาเริ่มต้น'])}</span> ถึง
+                                            วันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่สิ้นสุด'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาสิ้นสุด'])}</span>
+                                            ระยะทางไปกลับประมาณ <span className="font-semibold">{memoData['ระยะทางไปกลับ (กิโลเมตร)']}</span> กิโลเมตร
+                                            โดยมีผู้ขับขี่คือ <span className="font-semibold">{memoData['ขับขี่โดย']}</span>
+                                        </p>
+                                        <br />
+                                        <p>จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>
+                                        <br />
+                                        <p className="text-center">ขอแสดงความนับถือ</p>
+                                        <p className="text-center font-semibold mt-4">(<span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span>)</p>
+                                        <p className="text-center">ตำแหน่ง {memoData['ตำแหน่ง']}</p>
+                                    </div>
+                                </div>
+                                <div className="flex justify-center space-x-4 mt-6 print:hidden"> {/* Hide buttons when printing */}
+                                    <button
+                                        onClick={handlePrint}
+                                        className="bg-green-500 text-white py-2 px-6 rounded-lg font-semibold hover:bg-green-600 transition-all duration-200 shadow-md transform hover:scale-105 flex items-center"
+                                    >
+                                        พิมพ์ 🖨️
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('print')} // Go back to the print tab to select another memo
+                                        className="bg-gray-400 text-white py-2 px-6 rounded-lg font-semibold hover:bg-gray-500 transition-all duration-200 shadow-md transform hover:scale-105 flex items-center"
+                                    >
+                                        กลับ ↩️
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Footer Section */}
+                    <footer className="w-full max-w-4xl text-center text-sm sm:text-base text-gray-500 mt-8 py-4 bg-white rounded-2xl shadow-lg animate-fade-in delay-400">
+                        จัดทำโดย กลุ่มงานบริหารทั่วไป โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์ 🏫
+                    </footer>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+            );
+        }
 
-        {/* Tab 3: Usage Statistics */}
-        {activeTab === 'stats' && (
-          <div className="p-4">
-            <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">สถิติการใช้รถ 📊</h2>
-            <div className="space-y-8">
-              {/* Monthly Usage */}
-              <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in">
-                <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">จำนวนวันใช้งานในแต่ละเดือน 🗓️</h3>
-                {getMonthlyUsage().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={getMonthlyUsage()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <XAxis dataKey="month" angle={-30} textAnchor="end" height={60} interval={0} stroke="#EF5350" />
-                      <YAxis stroke="#EF5350" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="usageDays" name="จำนวนวันใช้งาน" fill="#EF5350" radius={[10, 10, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-gray-600 text-center">ไม่มีข้อมูลการใช้งานในแต่ละเดือน 😔</p>
-                )}
-              </div>
-
-              {/* Car Usage */}
-              <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in delay-100">
-                <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">สถิติรถที่จอง 🚗</h3>
-                {getCarUsageStats().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={getCarUsageStats()}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                      >
-                        {getCarUsageStats().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-gray-600 text-center">ไม่มีข้อมูลสถิติรถที่จอง 🙁</p>
-                )}
-              </div>
-
-              {/* Department Usage */}
-              <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in delay-200">
-                <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">สถิติการจองตามกลุ่มงาน/กลุ่มสาระฯ 🧑‍💻</h3>
-                {getDepartmentUsageStats().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={getDepartmentUsageStats()}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        fill="#82ca9d"
-                        dataKey="value"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                      >
-                        {getDepartmentUsageStats().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-gray-600 text-center">ไม่มีข้อมูลสถิติการจองตามกลุ่มงาน/กลุ่มสาระฯ 😔</p>
-                )}
-              </div>
-
-              {/* Destination Usage */}
-              <div className="bg-red-50 p-6 rounded-xl shadow-lg animate-fade-in delay-300">
-                <h3 className="text-xl font-semibold text-red-700 mb-4 text-center">สถิติการจองตามสถานที่ไป 🗺️</h3>
-                {getDestinationUsageStats().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={getDestinationUsageStats()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <XAxis dataKey="name" angle={-30} textAnchor="end" height={60} interval={0} stroke="#EF5350" />
-                      <YAxis stroke="#EF5350" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="value" name="จำนวนครั้ง" fill="#EF5350" radius={[10, 10, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-gray-600 text-center">ไม่มีข้อมูลสถิติการจองตามสถานที่ไป 🙁</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 4: Print Memo */}
-        {activeTab === 'print' && (
-          <div className="p-4">
-            <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">พิมพ์บันทึกข้อความ 📄</h2>
-            {bookings.length > 0 ? (
-              <div className="overflow-x-auto rounded-lg shadow-md border border-red-100">
-                <table className="min-w-full bg-white rounded-lg">
-                  <thead className="bg-red-200 text-red-900">
-                    <tr>
-                      <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider rounded-tl-lg">ชื่อผู้จอง</th>
-                      <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">รถที่จอง</th>
-                      <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">วันที่เริ่ม</th>
-                      <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider rounded-tr-lg">บันทึกข้อความ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-red-100">
-                    {bookings.map((booking, index) => (
-                      <tr key={index} className="hover:bg-red-50 transition-colors duration-150">
-                        <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['ชื่อ-สกุล ผู้จอง']}</td>
-                        <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['รถที่ต้องการใช้']}</td>
-                        <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['วันที่เริ่ม']}</td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <button
-                            onClick={() => handleGenerateMemo(booking)}
-                            className="bg-red-500 text-white py-1.5 px-3 rounded-lg text-sm font-semibold hover:bg-red-600 transition-all duration-200 shadow-md transform hover:scale-105"
-                          >
-                            คลิก 📝
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-gray-600 text-center">ไม่มีข้อมูลการจองเพื่อพิมพ์บันทึกข้อความ 😔</p>
-            )}
-          </div>
-        )}
-
-        {/* Memo Preview/Print Section (Hidden from main tabs, only shown when memoData is set) */}
-        {activeTab === 'memo-preview' && memoData && (
-          <div className="p-4 print-area"> {/* Add print-area class for printing */}
-            <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">บันทึกข้อความขออนุมัติใช้รถราชการ 📄</h2>
-            <div className="bg-red-50 p-6 rounded-xl shadow-lg border border-red-200 space-y-4 text-gray-800">
-              <p className="text-right text-sm">วันที่: {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-              <p className="font-semibold text-lg">เรื่อง: ขออนุมัติใช้รถราชการ</p>
-              <p className="font-semibold text-lg">เรียน: ผู้อำนวยการโรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
-              <div className="leading-relaxed">
-                <p>สิ่งที่ส่งมาด้วย: {memoData.attachmentUrl ? <a href={memoData.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline">เอกสารประกอบ</a> : 'ไม่มีเอกสารแนบ'} </p>
-                <br />
-                <p>เนื่องด้วย <span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span> ตำแหน่ง <span className="font-semibold">{memoData['ตำแหน่ง']}</span>
-                  กลุ่มงาน/กลุ่มสาระฯ <span className="font-semibold">{memoData['กลุ่มงาน/กลุ่มสาระฯ']}</span> เบอร์โทรศัพท์ <span className="font-semibold">{memoData['เบอร์โทร']}</span>
-                  มีความประสงค์ขอใช้รถราชการประเภท <span className="font-semibold">{memoData['รถที่ต้องการใช้']}</span> เพื่อไป
-                  <span className="font-semibold"> {memoData['สถานที่ไป']}</span></p>
-                <p>จำนวนครู <span className="font-semibold">{memoData['จำนวนครู']}</span> คน, จำนวนนักเรียน <span className="font-semibold">{memoData['จำนวนนักเรียน']}</span> คน</p>
-                <p>ในระหว่างวันที่ <span className="font-semibold">{memoData['วันที่เริ่ม']}</span> เวลา <span className="font-semibold">{memoData['เวลาเริ่มต้น']}</span> น. ถึง
-                  วันที่ <span className="font-semibold">{memoData['วันที่สิ้นสุด']}</span> เวลา <span className="font-semibold">{memoData['เวลาสิ้นสุด']}</span> น.
-                  ระยะทางไปกลับประมาณ <span className="font-semibold">{memoData['ระยะทางไปกลับ (กิโลเมตร)']}</span> กิโลเมตร
-                  โดยมีผู้ขับขี่คือ <span className="font-semibold">{memoData['ขับขี่โดย']}</span>
-                </p>
-                <br />
-                <p>จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>
-                <br />
-                <p className="text-center">ขอแสดงความนับถือ</p>
-                <p className="text-center font-semibold mt-4">(<span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span>)</p>
-                <p className="text-center">ตำแหน่ง {memoData['ตำแหน่ง']}</p>
-              </div>
-            </div>
-            <div className="flex justify-center space-x-4 mt-6 print:hidden"> {/* Hide buttons when printing */}
-              <button
-                onClick={handlePrint}
-                className="bg-green-500 text-white py-2 px-6 rounded-lg font-semibold hover:bg-green-600 transition-all duration-200 shadow-md transform hover:scale-105 flex items-center"
-              >
-                พิมพ์ 🖨️
-              </button>
-              <button
-                onClick={() => setActiveTab('print')} // Go back to the print tab to select another memo
-                className="bg-gray-400 text-white py-2 px-6 rounded-lg font-semibold hover:bg-gray-500 transition-all duration-200 shadow-md transform hover:scale-105 flex items-center"
-              >
-                กลับ ↩️
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Footer Section */}
-      <footer className="w-full max-w-4xl text-center text-sm sm:text-base text-gray-500 mt-8 py-4 bg-white rounded-2xl shadow-lg animate-fade-in delay-400">
-        จัดทำโดย กลุ่มงานบริหารทั่วไป โรงเรียนหางดงรัฐราษฎร์อุปถัมภ์ 🏫
-      </footer>
-    </div>
-  );
-}
-
-export default App;
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
