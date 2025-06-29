@@ -666,7 +666,8 @@
                 window.print();
             };
 
-            const COLORS = ['#FFCDD2', '#EF9A9A', '#E57373', '#EF5350', '#F44336', '#D32F2F', '#C62828', '#B71C1C']; // Shades of pastel red
+            // Updated COLORS array for more vibrant and distinct colors
+            const COLORS = ['#60A5FA', '#34D399', '#FCD34D', '#A78BFA', '#F87171', '#5EEAD4', '#FB923C', '#E879F9']; // Shades of blue, green, yellow, purple, coral, teal, orange, pink
 
             // Simple SVG Bar Chart Component
             const SimpleBarChart = ({ data, dataKey, valueKey, title }) => {
@@ -864,7 +865,7 @@
                                             value={formData.fullName}
                                             onChange={handleChange}
                                             className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                                            placeholder="เช่น สมชาย ใจดี"
+                                            placeholder="เช่น นายสมชาย ใจดี"
                                             required
                                         />
                                     </div>
@@ -976,7 +977,7 @@
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="startTime" className="block text-gray-700 font-medium mb-1">เวลาเริ่มต้น ⏰  <span className="text-red-500">*</span></label>
+                                        <label htmlFor="startTime" className="block text-gray-700 font-medium mb-1">เวลาเริ่มต้น ⏰ <span className="text-red-500">*</span></label>
                                         <input
                                             type="time"
                                             id="startTime"
@@ -1002,7 +1003,7 @@
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="endTime" className="block text-gray-700 font-medium mb-1">เวลาสิ้นสุด ⏰  <span className="text-red-500">*</span></label>
+                                        <label htmlFor="endTime" className="block text-gray-700 font-medium mb-1">เวลาสิ้นสุด ⏰ <span className="text-red-500">*</span></label>
                                         <input
                                             type="time"
                                             id="endTime"
@@ -1319,7 +1320,10 @@
                         {/* Memo Preview/Print Section (Hidden from main tabs, only shown when memoData is set) */}
                         {activeTab === 'memo-preview' && memoData && (
                             <div className="p-4 print-area"> {/* Add print-area class for printing */}
-                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">บันทึกข้อความขออนุมัติใช้รถไปราชการ</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center flex items-center justify-center">
+                                    <img src="https://img2.pic.in.th/pic/97aa298f3251a6dc1cd0c32a3bc36a03.th.jpg" alt="โลโก้โรงเรียน" className="h-10 w-10 mr-2" onError="this.onerror=null;this.src='https://placehold.co/40x40/cccccc/ffffff?text=Logo';" />
+                                    บันทึกข้อความขออนุมัติใช้รถไปราชการ
+                                </h2>
                                 <div className="bg-red-50 p-6 rounded-xl shadow-lg border border-red-200 space-y-4 text-gray-800">
                                     <p className="text-right text-sm">วันที่: {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                                     <p className="font-semibold text-lg">เรื่อง: ขออนุมัติใช้รถราชการ</p>
