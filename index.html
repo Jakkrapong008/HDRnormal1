@@ -203,7 +203,7 @@
             const [memoData, setMemoData] = useState(null); // State to hold data for memo generation
             const fileInputRef = useRef(null); // Ref for file input to clear it
             const [selectedStatYear, setSelectedStatYear] = useState(new Date().getFullYear() + 543); // Default to current Thai B.E. year
-            const [selectedStatMonth, setSelectedStatMonth] = useState(new Date().getMonth() + 1); // Default to current month (1-12)
+            const [selectedStatMonth, setSelectedStatMonth] = useState(""); // Default to "ทั้งหมด" (empty string)
 
 
             // Google App Script URL and Sheet/Drive IDs
@@ -1337,12 +1337,12 @@
                                     <img src="https://img2.pic.in.th/pic/97aa298f3251a6dc1cd0c32a3bc36a03.th.jpg" alt="โลโก้โรงเรียน" className="h-10 w-10 mr-2" onError="this.onerror=null;this.src='https://placehold.co/40x40/cccccc/ffffff?text=Logo';" />
                                     บันทึกข้อความขออนุมัติใช้รถไปราชการ
                                 </h2>
-                                <div className="bg-red-50 p-6 rounded-xl shadow-lg border border-red-200 space-y-4 text-gray-800">
+                                <div className="p-6 rounded-xl shadow-lg space-y-4 text-gray-800"> {/* Removed bg-red-50, border, border-red-200 */}
                                     <p className="text-right text-sm">วันที่: {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                    <p className="font-semibold text-lg">เรื่อง: ขออนุมัติใช้รถไปราชการ</p>
+                                    <p className="font-semibold text-lg">เรื่อง: ขออนุมัติใช้รถราชการ</p>
                                     <p className="font-semibold text-lg">เรียน: ผู้อำนวยการโรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
                                     <div className="leading-relaxed">
-                                        <p>สิ่งที่ส่งมาด้วย: {memoData['เอกสารประกอบ (URL)'] ? <a href={memoData['เอกสารประกอบ (URL)']} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline">เอกสารประกอบ</a> : 'ไม่มีเอกสารแนบ'} </p>
+                                        <p>สิ่งที่ส่งมาด้วย: {memoData['เอกสารประกอบ (URL)'] ? <a href={memoData['เอกสารประกอบ (URL)']} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">เอกสารประกอบ</a> : 'ไม่มีเอกสารแนบ'} </p>
                                         <br />
                                         <p>เนื่องด้วย <span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span> ตำแหน่ง <span className="font-semibold">{memoData['ตำแหน่ง']}</span> กลุ่มงาน/กลุ่มสาระฯ <span className="font-semibold">{memoData['กลุ่มงาน/กลุ่มสาระฯ']}</span> เบอร์โทรศัพท์ <span className="font-semibold">{memoData['เบอร์โทร']}</span> มีความประสงค์ขอใช้รถไปราชการประเภท <span className="font-semibold">{memoData['รถที่ต้องการใช้']}</span> โดยเดินทางไป 
                                             <span className="font-semibold"> {memoData['สถานที่ไป']}</span> จำนวนครู <span className="font-semibold">{memoData['จำนวนครู']}</span> คน, จำนวนนักเรียน <span className="font-semibold">{memoData['จำนวนนักเรียน']}</span> คน
