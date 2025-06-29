@@ -13,8 +13,6 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <!-- Babel Standalone for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Recharts (simplified for direct use, still requires some manual setup if not using module bundler) -->
-    <!-- For charts, we will implement simple SVG charts directly in React for single HTML file compatibility -->
 
     <style>
         body {
@@ -165,12 +163,12 @@
                 });
             };
 
-            // Function to format time
+            // Function to format time to HH.MM น.
             const formatTime = (timeString) => {
                 if (!timeString) return '';
-                // Assuming timeString is in "HH:MM" format
+                // Assuming timeString is in "HH:MM" format (e.g., "17:00")
                 const [hours, minutes] = timeString.split(':');
-                return `${hours}:${minutes} น.`;
+                return `${hours}.${minutes} น.`;
             };
 
             // Fetch bookings on component mount and when active tab changes to 'schedule' or 'stats'
@@ -199,6 +197,7 @@
                                 startDateObj: startDate,
                                 endDateObj: endDate,
                                 // Combine date and time for full timestamp objects for easier comparison
+                                // Note: The raw time strings from the sheet are still kept in row['เวลาเริ่มต้น'] for display
                                 startDateTime: new Date(`${row['วันที่เริ่ม']}T${row['เวลาเริ่มต้น']}`),
                                 endDateTime: new Date(`${row['วันที่สิ้นสุด']}T${row['เวลาสิ้นสุด']}`),
                             };
@@ -407,21 +406,28 @@
 
             const handlePrevMonth = () => {
                 setCurrentMonth(prevMonth => (prevMonth === 0 ? 11 : prevMonth - 1));
-                setCurrentYear(prevMonth => (prevMonth === 0 ? prevMonth - 1 : prevMonth));
+                setCurrentYear(prevMonth => (prevMonth === 0 ? prevYear - 1 : prevYear)); // Corrected year change
             };
 
             const handleNextMonth = () => {
                 setCurrentMonth(prevMonth => (prevMonth === 11 ? 0 : prevMonth + 1));
-                setCurrentYear(prevMonth => (prevMonth === 11 ? prevMonth + 1 : prevMonth));
+                setCurrentYear(prevMonth => (prevMonth === 11 ? prevYear + 1 : prevYear)); // Corrected year change
             };
 
             // Get bookings for a specific day
             const getBookingsForDay = (day) => {
                 if (!day) return [];
                 const date = new Date(currentYear, currentMonth, day);
+                // To compare only date part, normalize both dates to start of day
+                const selectedDateStartOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
                 return bookings.filter(booking => {
-                    // Check if the booking period spans across the selected date
-                    return booking.startDateObj <= date && booking.endDateObj >= date;
+                    // Normalize booking start and end dates to start of day for comparison
+                    const bookingStartDateOnly = new Date(booking.startDateObj.getFullYear(), booking.startDateObj.getMonth(), booking.startDateObj.getDate());
+                    const bookingEndDateOnly = new Date(booking.endDateObj.getFullYear(), booking.endDateObj.getMonth(), booking.endDateObj.getDate());
+
+                    // Check if the selected date falls within the booking period (inclusive)
+                    return selectedDateStartOfDay >= bookingStartDateOnly && selectedDateStartOfDay <= bookingEndDateOnly;
                 });
             };
 
@@ -433,14 +439,10 @@
                 }
             };
 
-            // Statistics calculation (simplified for single HTML file without recharts)
+            // Statistics calculation (using simple SVG charts as recharts is not suitable for single HTML file)
             const getMonthlyUsage = () => {
                 const monthlyData = {};
                 bookings.forEach(booking => {
-                    const startMonth = booking.startDateObj.getMonth();
-                    const startYear = booking.startDateObj.getFullYear();
-                    const endMonth = booking.endDateObj.getMonth();
-
                     let currentDate = new Date(booking.startDateObj);
                     while (currentDate <= booking.endDateObj) {
                         const monthYearKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
