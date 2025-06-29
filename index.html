@@ -197,9 +197,9 @@
             const [message, setMessage] = useState(''); // State for user messages (success/error)
             const [messageType, setMessageType] = useState(''); // State for message type ('success' or 'error')
             const [isLoading, setIsLoading] = useState(false); // State for loading indicator
-            const [showModal, setShowModal] = useState(false); // State for controlling message modal visibility
             const [selectedDateBookings, setSelectedDateBookings] = useState([]); // Bookings for selected calendar date
             const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false); // State for calendar details modal visibility
+            const [showModal, setShowModal] = useState(false); // State for controlling message modal visibility
             const [memoData, setMemoData] = useState(null); // State to hold data for memo generation
             const fileInputRef = useRef(null); // Ref for file input to clear it
             const [selectedStatYear, setSelectedStatYear] = useState(new Date().getFullYear() + 543); // Default to current Thai B.E. year
@@ -574,7 +574,7 @@
                 });
             };
 
-            // Get bookings for a specific day
+            // Get bookings for a specific day (used for highlighting in calendar)
             const getBookingsForDay = (day) => {
                 if (!day) return [];
                 const date = new Date(currentYear, currentMonth, day);
@@ -1152,7 +1152,7 @@
                                     <div>เสาร์</div>
                                 </div>
 
-                                <div className="grid grid-cols-7 gap-2">
+                                <div className="grid grid-cols-7 gap-2 mb-8">
                                     {getCalendarDays().map((day, index) => {
                                         const dayBookings = day ? getBookingsForDay(day) : [];
                                         const isBooked = dayBookings.length > 0;
@@ -1163,7 +1163,7 @@
                                                   ${day ? 'bg-red-50 text-red-800 shadow-sm' : 'bg-gray-50 text-gray-400'}
                                                   ${isBooked ? 'bg-red-200 font-bold border-2 border-red-400 animate-pulse-fade' : ''}
                                                 `}
-                                                onClick={() => handleDayClick(day)}
+                                                onClick={() => handleDayClick(day)} // Re-added onClick event for day to show popup
                                             >
                                                 {day && (
                                                     <>
@@ -1220,6 +1220,58 @@
                                         </div>
                                     </div>
                                 )}
+
+                                {/* New: Car-specific Booking Tables */}
+                                <div className="space-y-8"> {/* Container for all car tables */}
+                                    {carTypes.map(carType => (
+                                        <div key={carType} className="bg-blue-50 p-6 rounded-xl shadow-lg border border-blue-200">
+                                            <h3 className="text-xl font-semibold text-blue-700 mb-4 text-center">
+                                                ตารางการจองรถ: {carType}
+                                            </h3>
+                                            <div className="overflow-x-auto rounded-lg shadow-md border border-blue-100">
+                                                <table className="min-w-full bg-white rounded-lg">
+                                                    <thead className="bg-blue-200 text-blue-900">
+                                                        <tr>
+                                                            <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">วันที่เริ่ม</th>
+                                                            <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">เวลาเริ่ม</th>
+                                                            <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">วันที่สิ้นสุด</th>
+                                                            <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">เวลาสิ้นสุด</th>
+                                                            <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">ผู้จอง</th>
+                                                            <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">สถานที่ไป</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-blue-100">
+                                                        {/* Filter bookings for current carType and current month/year */}
+                                                        {bookings.filter(booking => 
+                                                            booking['รถที่ต้องการใช้'] === carType &&
+                                                            booking.startDateObj.getMonth() === currentMonth &&
+                                                            booking.startDateObj.getFullYear() === currentYear
+                                                        ).sort((a,b) => a.startDateTime - b.startDateTime) // Sort by start time for better readability
+                                                        .map((booking, idx) => (
+                                                            <tr key={idx} className="hover:bg-blue-50 transition-colors duration-150">
+                                                                <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatThaiDate(booking['วันที่เริ่ม'])}</td>
+                                                                <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatTime(booking['เวลาเริ่มต้น'])}</td>
+                                                                <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatThaiDate(booking['วันที่สิ้นสุด'])}</td>
+                                                                <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatTime(booking['เวลาสิ้นสุด'])}</td>
+                                                                <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['ชื่อ-สกุล ผู้จอง']}</td>
+                                                                <td className="py-3 px-4 text-gray-700">{booking['สถานที่ไป']}</td>
+                                                            </tr>
+                                                        ))}
+                                                        {bookings.filter(booking => 
+                                                            booking['รถที่ต้องการใช้'] === carType &&
+                                                            booking.startDateObj.getMonth() === currentMonth &&
+                                                            booking.startDateObj.getFullYear() === currentYear
+                                                        ).length === 0 && (
+                                                            <tr>
+                                                                <td colSpan="6" className="py-4 text-center text-gray-500">ไม่มีการจองสำหรับรถคันนี้ในเดือนนี้ 😴</td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
