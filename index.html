@@ -1339,20 +1339,17 @@
                                 </h2>
                                 <div className="bg-red-50 p-6 rounded-xl shadow-lg border border-red-200 space-y-4 text-gray-800">
                                     <p className="text-right text-sm">วันที่: {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                    <p className="font-semibold text-lg">เรื่อง: ขออนุมัติใช้รถราชการ</p>
+                                    <p className="font-semibold text-lg">เรื่อง: ขออนุมัติใช้รถไปราชการ</p>
                                     <p className="font-semibold text-lg">เรียน: ผู้อำนวยการโรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
                                     <div className="leading-relaxed">
                                         <p>สิ่งที่ส่งมาด้วย: {memoData['เอกสารประกอบ (URL)'] ? <a href={memoData['เอกสารประกอบ (URL)']} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline">เอกสารประกอบ</a> : 'ไม่มีเอกสารแนบ'} </p>
                                         <br />
-                                        <p>เนื่องด้วย <span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span> ตำแหน่ง <span className="font-semibold">{memoData['ตำแหน่ง']}</span>
-                                            กลุ่มงาน/กลุ่มสาระฯ <span className="font-semibold">{memoData['กลุ่มงาน/กลุ่มสาระฯ']}</span> เบอร์โทรศัพท์ <span className="font-semibold">{memoData['เบอร์โทร']}</span>
-                                            มีความประสงค์ขอใช้รถไปราชการประเภท <span className="font-semibold">{memoData['รถที่ต้องการใช้']}</span> โดยเดินทางไป 
-                                            <span className="font-semibold"> {memoData['สถานที่ไป']}</span>
-                                        จำนวนครู <span className="font-semibold">{memoData['จำนวนครู']}</span> คน, จำนวนนักเรียน <span className="font-semibold">{memoData['จำนวนนักเรียน']}</span> คน
+                                        <p>เนื่องด้วย <span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span> ตำแหน่ง <span className="font-semibold">{memoData['ตำแหน่ง']}</span> กลุ่มงาน/กลุ่มสาระฯ <span className="font-semibold">{memoData['กลุ่มงาน/กลุ่มสาระฯ']}</span> เบอร์โทรศัพท์ <span className="font-semibold">{memoData['เบอร์โทร']}</span> มีความประสงค์ขอใช้รถไปราชการประเภท <span className="font-semibold">{memoData['รถที่ต้องการใช้']}</span> โดยเดินทางไป 
+                                            <span className="font-semibold"> {memoData['สถานที่ไป']}</span> จำนวนครู <span className="font-semibold">{memoData['จำนวนครู']}</span> คน, จำนวนนักเรียน <span className="font-semibold">{memoData['จำนวนนักเรียน']}</span> คน
                                         ในระหว่างวันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่เริ่ม'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาเริ่มต้น'])}</span> ถึง
-                                            วันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่สิ้นสุด'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาสิ้นสุด'])}</span>
-                                            ระยะทางไปกลับประมาณ <span className="font-semibold">{memoData['ระยะทางไปกลับ (กิโลเมตร)']}</span> กิโลเมตร
-                                            โดยมีผู้ขับขี่คือ <span className="font-semibold">{memoData['ขับขี่โดย']}</span>
+                                             วันที่ <span className="font-semibold">{formatThaiDate(memoData['วันที่สิ้นสุด'])}</span> เวลา <span className="font-semibold">{formatTime(memoData['เวลาสิ้นสุด'])}</span>
+                                             ระยะทางไป-กลับประมาณ <span className="font-semibold">{memoData['ระยะทางไปกลับ (กิโลเมตร)']}</span> กิโลเมตร
+                                             โดยมีผู้ขับขี่คือ <span className="font-semibold">{memoData['ขับขี่โดย']}</span>
                                         </p>
                                         
                                         <br />
