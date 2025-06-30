@@ -222,6 +222,14 @@
                 'รถตู้ใหม่ นจ1491', 'รถตู้เก่า นง4729', 'รถกระบะ นจ1093', 'รถบรรทุก 6 ล้อ 40-0431'
             ];
 
+            // Define colors for each car type for display in calendar cells
+            const CAR_DISPLAY_COLORS = {
+                'รถตู้ใหม่ นจ1491': 'text-green-700',
+                'รถตู้เก่า นง4729': 'text-blue-700',
+                'รถกระบะ นจ1093': 'text-purple-700',
+                'รถบรรทุก 6 ล้อ 40-0431': 'text-yellow-700',
+            };
+
             // Function to format date to Thai Buddhist Era (พ.ศ.)
             const formatThaiDate = (dateString) => {
                 if (!dateString) return '';
@@ -1136,9 +1144,11 @@
                                                     <>
                                                         <span className="text-lg font-bold">{day}</span>
                                                         {isBooked && (
-                                                            <div className="mt-1 text-xs text-red-900">
+                                                            <div className="mt-1 text-[0.7rem] text-red-900"> {/* Adjusted font size here */}
                                                                 {dayBookings.map((b, i) => (
-                                                                    <p key={i} className="leading-tight">{b['ชื่อ-สกุล ผู้จอง']} ({b['รถที่ต้องการใช้'].split(' ')[0]})</p>
+                                                                    <p key={i} className={`${CAR_DISPLAY_COLORS[b['รถที่ต้องการใช้']]} leading-tight`}> {/* Applied car-specific color */}
+                                                                        {b['รถที่ต้องการใช้'].split(' ')[0]}
+                                                                    </p>
                                                                 ))}
                                                             </div>
                                                         )}
