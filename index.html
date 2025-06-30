@@ -204,6 +204,7 @@
             const fileInputRef = useRef(null); // Ref for file input to clear it
             const [selectedStatYear, setSelectedStatYear] = useState(new Date().getFullYear() + 543); // Default to current Thai B.E. year
             const [selectedStatMonth, setSelectedStatMonth] = useState(""); // Default to "ทั้งหมด" (empty string)
+            const [searchTerm, setSearchTerm] = useState(''); // State for search term in print tab
 
 
             // Google App Script URL and Sheet/Drive IDs
@@ -1318,6 +1319,22 @@
                         {activeTab === 'print' && (
                             <div className="p-4">
                                 <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center">พิมพ์บันทึกข้อความ 📄</h2>
+                                {/* Search Bar for Print Memo */}
+                                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                                    <input
+                                        type="text"
+                                        placeholder="ค้นหาจากชื่อผู้จอง..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full sm:w-2/3 p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
+                                    />
+                                    <button
+                                        onClick={fetchBookings} // Re-fetch bookings to apply search filter (though filter is applied on render)
+                                        className="w-full sm:w-1/3 bg-red-400 text-white py-3 rounded-lg font-semibold hover:bg-red-500 transition-all duration-200 shadow-md transform hover:scale-105"
+                                    >
+                                        ค้นหา 🔍
+                                    </button>
+                                </div>
                                 {bookings.length > 0 ? (
                                     <div className="overflow-x-auto rounded-lg shadow-md border border-red-100">
                                         <table className="min-w-full bg-white rounded-lg">
@@ -1330,12 +1347,17 @@
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-red-100">
-                                                {/* Sort bookings by 'วันที่สร้างรายการ' in descending order (latest first) */}
-                                                {[...bookings].sort((a, b) => {
-                                                    const dateA = new Date(a['วันที่สร้างรายการ']);
-                                                    const dateB = new Date(b['วันที่สร้างรายการ']);
-                                                    return dateB.getTime() - dateA.getTime();
-                                                }).map((booking, index) => (
+                                                {/* Filter bookings by search term and then sort */}
+                                                {[...bookings]
+                                                    .filter(booking => 
+                                                        booking['ชื่อ-สกุล ผู้จอง'].toLowerCase().includes(searchTerm.toLowerCase())
+                                                    )
+                                                    .sort((a, b) => {
+                                                        const dateA = new Date(a['วันที่สร้างรายการ']);
+                                                        const dateB = new Date(b['วันที่สร้างรายการ']);
+                                                        return dateB.getTime() - dateA.getTime();
+                                                    })
+                                                    .map((booking, index) => (
                                                     <tr key={index} className="hover:bg-red-50 transition-colors duration-150">
                                                         <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['ชื่อ-สกุล ผู้จอง']}</td>
                                                         <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['รถที่ต้องการใช้']}</td>
@@ -1350,6 +1372,14 @@
                                                         </td>
                                                     </tr>
                                                 ))}
+                                                {/* Display message if no results after filtering */}
+                                                {bookings.filter(booking => 
+                                                    booking['ชื่อ-สกุล ผู้จอง'].toLowerCase().includes(searchTerm.toLowerCase())
+                                                ).length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="4" className="py-4 text-center text-gray-500">ไม่พบข้อมูลการจองที่ตรงกับคำค้นหา 🙁</td>
+                                                    </tr>
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
