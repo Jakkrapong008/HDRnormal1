@@ -545,7 +545,7 @@
                         setCurrentYear(prevYear => prevYear + 1);
                         return 0;
                     }
-                    return prevMonth + 1;
+                    return prevMonth - 1;
                 });
             };
 
@@ -1418,6 +1418,48 @@
                                         <br /><br /> {/* Added two more line breaks here */}
                                         <p className="text-center font-semibold mt-4">(<span className="font-semibold">{memoData['ชื่อ-สกุล ผู้จอง']}</span>)</p>
                                         <p className="text-center">ตำแหน่ง {memoData['ตำแหน่ง']}</p>
+
+                                        {/* --- MODIFICATION START: Approval Section --- */}
+                                        <div className="border-t border-gray-300 pt-8 mt-8 space-y-8 text-sm">
+                                            {/* Row 1: Head of Vehicles & Deputy Director */}
+                                            <div className="flex flex-col md:flex-row justify-between space-y-8 md:space-y-0">
+                                                {/* Block 1 (Left) */}
+                                                <div className="w-full md:w-5/12">
+                                                    <p className="font-semibold">ความคิดเห็นของหัวหน้างานพาหนะ</p>
+                                                    <p className="mt-2">( ) ไม่อนุมัติ</p>
+                                                    <p>( ) อนุมัติใช้รถ...............................</p>
+                                                    <p>( ) อนุมัติเบิกค่าน้ำมันรถ.................บาท</p>
+                                                    <br />
+                                                    <p className="mt-8">ลงชื่อ.................................................</p>
+                                                    <p>(นางสาวปัทมาพร จันทร์หลวง)</p>
+                                                    <p>ตำแหน่ง หัวหน้างานยานพาหนะ</p>
+                                                </div>
+                                                
+                                                {/* Block 2 (Right) */}
+                                                <div className="w-full md:w-5/12">
+                                                    <p className="font-semibold">ความคิดเห็นของรองผู้อำนวยการกลุ่มบริหารทั่วไป</p>
+                                                    <p className="mt-2">( ) ไม่อนุมัติ</p>
+                                                    <p>( ) อนุมัติใช้รถ...............................</p>
+                                                    <br />
+                                                    <p className="mt-8">ลงชื่อ.................................................</p>
+                                                    <p>(นายวีระพันธ์ วงศ์สุวรรณ)</p>
+                                                    <p>ตำแหน่ง รองผู้อำนวยการกลุ่มบริหารทั่วไป</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Row 2: Director */}
+                                            <div className="text-center pt-8">
+                                                <p className="font-semibold">ความคิดเห็นของผู้อำนวยการโรงเรียน</p>
+                                                <p className="mt-2">( ) ไม่อนุมัติ</p>
+                                                <p>( ) อนุมัติใช้รถ...............................</p>
+                                                <br />
+                                                <p className="mt-8">ลงชื่อ.................................................</p>
+                                                <p>(นางภักดิ์ศรินญา คมน์สุทธิแสน)</p>
+                                                <p>ตำแหน่ง ผู้อำนวยการโรงเรียนหางดงรัฐราษฎร์อุปถัมภ์</p>
+                                            </div>
+                                        </div>
+                                        {/* --- MODIFICATION END --- */}
+
                                     </div>
                                 </div>
                                 <div className="flex justify-center space-x-4 mt-6 print:hidden"> {/* Hide buttons when printing */}
@@ -1450,3 +1492,4 @@
     </script>
 </body>
 </html>
+
