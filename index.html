@@ -193,7 +193,8 @@
                 destination: '',
                 attachment: null, // For file upload
             });
-            const [bookings, setBookings] = useState([]); // State to store booking data
+            const [bookings, setBookings] = useState([]); // State to store *approved* booking data
+            const [allBookingsForPrint, setAllBookingsForPrint] = useState([]); // --- NEW: State for print tab (all data) ---
             const [message, setMessage] = useState(''); // State for user messages (success/error)
             const [messageType, setMessageType] = useState(''); // State for message type ('success' or 'error')
             const [isLoading, setIsLoading] = useState(false); // State for loading indicator
@@ -279,10 +280,14 @@
                 return timeValue; // Return original value if cannot format
             };
 
-            // Fetch bookings on component mount and when active tab changes to 'schedule' or 'stats'
+            // Fetch *approved* bookings on component mount and when active tab changes to 'schedule' or 'stats'
             useEffect(() => {
-                if (activeTab === 'schedule' || activeTab === 'stats' || activeTab === 'print') {
-                    fetchBookings();
+                if (activeTab === 'schedule' || activeTab === 'stats') {
+                    fetchBookings(); // Fetches *approved* bookings
+                }
+                // --- NEW: Fetch all bookings for print tab ---
+                if (activeTab === 'print') {
+                    fetchBookingsForPrint(); // Fetches *all* bookings
                 }
             }, [activeTab]);
 
@@ -304,10 +309,11 @@
                 });
             };
 
-            // Function to fetch booking data from Google Sheet
+            // Function to fetch *approved* booking data from Google Sheet
             const fetchBookings = async () => {
                 setIsLoading(true);
                 try {
+                    // This default call will now be handled by 'getAllBookings' action in GAS
                     const response = await fetch(`${SCRIPT_URL}?action=getAllBookings&sheetId=${SHEET_ID}`);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
@@ -350,13 +356,67 @@
                                 endDateTime: new Date(`${row['วันที่สิ้นสุด']}T${endTimeFormatted}`),
                             };
                         });
-                        setBookings(formattedData);
+                        setBookings(formattedData); // This state now holds *approved* bookings
                     } else {
                         setBookings([]);
                     }
                 } catch (error) {
                     console.error('Error fetching bookings:', error);
                     showMessage('เกิดข้อผิดพลาดในการดึงข้อมูลการจอง 😥', 'error');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            // --- NEW: Function to fetch *all* booking data for Print tab ---
+            const fetchBookingsForPrint = async () => {
+                setIsLoading(true);
+                try {
+                    // Call the new action 'getAllBookingsForPrint'
+                    const response = await fetch(`${SCRIPT_URL}?action=getAllBookingsForPrint&sheetId=${SHEET_ID}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data && Array.isArray(data.data)) {
+                        // Map data just like in fetchBookings
+                        const formattedData = data.data.map(row => {
+                            const startDate = new Date(row['วันที่เริ่ม']);
+                            const endDate = new Date(row['วันที่สิ้นสุด']);
+                            
+                            let startTimeFormatted = row['เวลาเริ่มต้น'];
+                            if (startTimeFormatted instanceof Date) {
+                                startTimeFormatted = `${startTimeFormatted.getHours().toString().padStart(2, '0')}:${startTimeFormatted.getMinutes().toString().padStart(2, '0')}`;
+                            } else if (typeof startTimeFormatted === 'string' && startTimeFormatted.includes('T')) {
+                                startTimeFormatted = startTimeFormatted.split('T')[1].substring(0,5);
+                            } else if (typeof startTimeFormatted === 'string' && startTimeFormatted.length > 5 && startTimeFormatted.indexOf(':') === 2) {
+                                startTimeFormatted = startTimeFormatted.substring(0, 5);
+                            }
+
+                            let endTimeFormatted = row['เวลาสิ้นสุด'];
+                            if (endTimeFormatted instanceof Date) {
+                                endTimeFormatted = `${endTimeFormatted.getHours().toString().padStart(2, '0')}:${endTimeFormatted.getMinutes().toString().padStart(2, '0')}`;
+                            } else if (typeof endTimeFormatted === 'string' && endTimeFormatted.includes('T')) {
+                                endTimeFormatted = endTimeFormatted.split('T')[1].substring(0,5);
+                            } else if (typeof endTimeFormatted === 'string' && endTimeFormatted.length > 5 && endTimeFormatted.indexOf(':') === 2) {
+                                endTimeFormatted = endTimeFormatted.substring(0, 5);
+                            }
+
+                            return {
+                                ...row,
+                                startDateObj: startDate,
+                                endDateObj: endDate,
+                                startDateTime: new Date(`${row['วันที่เริ่ม']}T${startTimeFormatted}`),
+                                endDateTime: new Date(`${row['วันที่สิ้นสุด']}T${endTimeFormatted}`),
+                            };
+                        });
+                        setAllBookingsForPrint(formattedData); // Set the new state
+                    } else {
+                        setAllBookingsForPrint([]);
+                    }
+                } catch (error) {
+                    console.error('Error fetching all bookings for print:', error);
+                    showMessage('เกิดข้อผิดพลาดในการดึงข้อมูลสำหรับพิมพ์ 😥', 'error');
                 } finally {
                     setIsLoading(false);
                 }
@@ -491,7 +551,9 @@
                             if (fileInputRef.current) {
                                 fileInputRef.current.value = ''; // Clear file input
                             }
-                            fetchBookings(); // Refresh bookings to update calendar/stats
+                            // No need to call fetchBookings() here,
+                            // as the new item is not approved yet and won't show anyway.
+                            // fetchBookings(); 
                         } else {
                             showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
                         }
@@ -1329,13 +1391,14 @@
                                         className="w-full sm:w-2/3 p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
                                     />
                                     <button
-                                        onClick={fetchBookings} // Re-fetch bookings to apply search filter (though filter is applied on render)
+                                        onClick={fetchBookingsForPrint} // --- MODIFIED: Call fetchBookingsForPrint ---
                                         className="w-full sm:w-1/3 bg-red-400 text-white py-3 rounded-lg font-semibold hover:bg-red-500 transition-all duration-200 shadow-md transform hover:scale-105"
                                     >
                                         ค้นหา 🔍
                                     </button>
                                 </div>
-                                {bookings.length > 0 ? (
+                                {/* --- MODIFIED: Check allBookingsForPrint.length --- */}
+                                {allBookingsForPrint.length > 0 ? (
                                     <div className="overflow-x-auto rounded-lg shadow-md border border-red-100">
                                         <table className="min-w-full bg-white rounded-lg">
                                             <thead className="bg-red-200 text-red-900">
@@ -1343,12 +1406,14 @@
                                                     <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider rounded-tl-lg">ชื่อผู้จอง</th>
                                                     <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">รถที่จอง</th>
                                                     <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">วันที่ใช้รถ</th>
+                                                    {/* --- NEW: Show Approval Status Column --- */}
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider">สถานะอนุมัติ</th>
                                                     <th className="py-3 px-4 text-left text-sm font-semibold uppercase tracking-wider rounded-tr-lg">บันทึกข้อความ</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-red-100">
-                                                {/* Filter bookings by search term and then sort */}
-                                                {[...bookings]
+                                                {/* --- MODIFIED: Filter and map allBookingsForPrint --- */}
+                                                {[...allBookingsForPrint]
                                                     .filter(booking => 
                                                         booking['ชื่อ-สกุล ผู้จอง'].toLowerCase().includes(searchTerm.toLowerCase())
                                                     )
@@ -1362,6 +1427,14 @@
                                                         <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['ชื่อ-สกุล ผู้จอง']}</td>
                                                         <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['รถที่ต้องการใช้']}</td>
                                                         <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatThaiDate(booking['วันที่เริ่ม'])}</td>
+                                                        {/* --- NEW: Show Approval Status --- */}
+                                                        <td className="py-3 px-4 whitespace-nowrap">
+                                                            {booking['อนุมัติ'] === true ? (
+                                                                <span className="text-green-600 font-semibold">✅ อนุมัติ</span>
+                                                            ) : (
+                                                                <span className="text-yellow-600 font-semibold">⏳ รออนุมัติ</span>
+                                                            )}
+                                                        </td>
                                                         <td className="py-3 px-4 whitespace-nowrap">
                                                             <button
                                                                 onClick={() => handleGenerateMemo(booking)}
@@ -1372,12 +1445,12 @@
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {/* Display message if no results after filtering */}
-                                                {bookings.filter(booking => 
+                                                {/* --- MODIFIED: Check filtered allBookingsForPrint length --- */}
+                                                {allBookingsForPrint.filter(booking => 
                                                     booking['ชื่อ-สกุล ผู้จอง'].toLowerCase().includes(searchTerm.toLowerCase())
                                                 ).length === 0 && (
                                                     <tr>
-                                                        <td colSpan="4" className="py-4 text-center text-gray-500">ไม่พบข้อมูลการจองที่ตรงกับคำค้นหา 🙁</td>
+                                                        <td colSpan="5" className="py-4 text-center text-gray-500">ไม่พบข้อมูลการจองที่ตรงกับคำค้นหา 🙁</td>
                                                     </tr>
                                                 )}
                                             </tbody>
