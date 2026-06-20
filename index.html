@@ -1466,7 +1466,7 @@
                         {activeTab === 'memo-preview' && memoData && (
                             <div className="p-4 print-area"> {/* Add print-area class for printing */}
                                 <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-6 text-center flex items-center justify-center">
-                                    <img src="https://img2.pic.in.th/pic/97aa298f3251a6dc1cd0c32a3bc36a03.th.jpg" alt="โลโก้โรงเรียน" className="h-10 w-10 mr-2" onError="this.onerror=null;this.src='https://placehold.co/40x40/cccccc/ffffff?text=Logo';" />
+                                    <img src="https://img2.pic.in.th/pic/97aa298f3251a6dc1cd0c32a3bc36a03.th.jpg" alt="โลโก้โรงเรียน" className="h-10 w-10 mr-2" onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/40x40/cccccc/ffffff?text=Logo'; }} />
                                     บันทึกข้อความขออนุมัติใช้รถไปราชการ
                                 </h2>
                                 <div className="p-6 rounded-xl shadow-lg space-y-4 text-gray-800"> {/* Removed bg-red-50, border, border-red-200 */}
@@ -1561,7 +1561,8 @@
             );
         }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
     </script>
 </body>
 </html>
