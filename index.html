@@ -21,7 +21,7 @@
     </script>
     
     <!-- Babel Standalone for JSX transformation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 
     <style>
         body {
@@ -125,13 +125,164 @@
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
 
-        // Function to get the app ID, essential for Firebase configuration.
-        // If __app_id is not defined, it defaults to 'default-app-id'.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const MAX_FILE_BYTES = 10 * 1024 * 1024; // ไฟล์แนบไม่เกิน 10 MB (ต้องตรงกับ Code.gs)
 
-        // Parse the Firebase configuration string into a JavaScript object.
-        // This configuration is crucial for initializing Firebase services.
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // ===== ตัวช่วยแปลงวันที่/เวลา =====
+        // 'YYYY-MM-DD' (หรือ ISO ที่มี T) -> 'YYYY-MM-DD'
+        const toYMD = (value) => {
+            if (!value) return '';
+            const s = String(value).trim();
+            return s.includes('T') ? s.split('T')[0] : s;
+        };
+
+        // '8:30', '08:30:00', '08.30 น.', ISO -> 'HH:MM'
+        const toHHMM = (value) => {
+            if (!value) return '';
+            let s = String(value).replace(/\s*น\.\s*$/, '').trim();
+            if (s.includes('T')) s = s.split('T')[1];
+            const m = s.match(/^(\d{1,2})[:.](\d{2})/);
+            return m ? `${m[1].padStart(2, '0')}:${m[2]}` : s;
+        };
+
+        // สร้าง Date ตามเวลาท้องถิ่น (new Date('YYYY-MM-DD') จะตีความเป็น UTC)
+        const makeLocalDate = (ymd, hhmm = '00:00') => {
+            const d = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!d) return new Date(NaN);
+            const t = String(hhmm || '').match(/^(\d{2}):(\d{2})$/) || [null, '0', '0'];
+            return new Date(+d[1], +d[2] - 1, +d[3], +t[1], +t[2]);
+        };
+
+        const isValidDate = (date) => date instanceof Date && !isNaN(date.getTime());
+
+        // แปลงแถวจาก Apps Script เป็นรูปแบบที่หน้าเว็บใช้
+        const normalizeBooking = (row) => {
+            const startDate = toYMD(row['วันที่เริ่ม']);
+            const endDate = toYMD(row['วันที่สิ้นสุด']);
+            const startTime = toHHMM(row['เวลาเริ่มต้น']);
+            const endTime = toHHMM(row['เวลาสิ้นสุด']);
+            return {
+                ...row,
+                'ชื่อ-สกุล ผู้จอง': String(row['ชื่อ-สกุล ผู้จอง'] ?? ''),
+                'รถที่ต้องการใช้': String(row['รถที่ต้องการใช้'] ?? ''),
+                'วันที่เริ่ม': startDate,
+                'วันที่สิ้นสุด': endDate,
+                'เวลาเริ่มต้น': startTime,
+                'เวลาสิ้นสุด': endTime,
+                startDateObj: makeLocalDate(startDate),
+                endDateObj: makeLocalDate(endDate),
+                startDateTime: makeLocalDate(startDate, startTime),
+                endDateTime: makeLocalDate(endDate, endTime),
+                createdAt: new Date(String(row['วันที่สร้างรายการ'] ?? '').replace(' ', 'T')),
+            };
+        };
+
+        // ===== กราฟ (ประกาศนอก App เพื่อไม่ให้ถูกสร้างใหม่ทุกครั้งที่ App render) =====
+        const COLORS = ['#60A5FA', '#34D399', '#FCD34D', '#A78BFA', '#F87171', '#5EEAD4', '#FB923C', '#E879F9'];
+
+        const SimpleBarChart = ({ data, dataKey, valueKey, title }) => {
+            if (!data || data.length === 0) return <p className="text-gray-600 text-center">ไม่มีข้อมูล {title} 😔</p>;
+
+            const maxValue = Math.max(...data.map(d => d[valueKey]));
+            const barWidth = 30;
+            const gap = 10;
+            const chartWidth = data.length * (barWidth + gap) + 100;
+            const chartHeight = 200;
+            const scaleY = chartHeight / (maxValue > 0 ? maxValue : 1);
+
+            return (
+                <div className="flex flex-col items-center overflow-x-auto w-full">
+                    <svg width="100%" height={chartHeight + 50} viewBox={`0 0 ${chartWidth} ${chartHeight + 50}`} preserveAspectRatio="xMinYMin meet">
+                        <line x1="50" y1="0" x2="50" y2={chartHeight} stroke="#333" />
+                        <line x1="50" y1={chartHeight} x2={chartWidth - 50} y2={chartHeight} stroke="#333" />
+                        {data.map((d, i) => {
+                            const x = 50 + i * (barWidth + gap);
+                            const barHeight = d[valueKey] * scaleY;
+                            const y = chartHeight - barHeight;
+                            return (
+                                <React.Fragment key={i}>
+                                    <rect x={x} y={y} width={barWidth} height={barHeight} fill={COLORS[i % COLORS.length]} rx="5" ry="5" />
+                                    <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fontSize="12" fill="#333">
+                                        {d[valueKey]}
+                                    </text>
+                                </React.Fragment>
+                            );
+                        })}
+                    </svg>
+                    <p className="text-center text-sm text-gray-500 mt-2">({title})</p>
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-sm">
+                        {data.map((entry, index) => (
+                            <div key={`legend-${index}`} className="flex items-center">
+                                <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
+                                <span>{`${entry[dataKey]} (${entry[valueKey]} ครั้ง)`}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const SimplePieChart = ({ data, title }) => {
+            // hook ต้องอยู่ก่อน return แรกเสมอ
+            const [hoveredEntry, setHoveredEntry] = useState(null);
+
+            if (!data || data.length === 0) return <p className="text-gray-600 text-center">ไม่มีข้อมูล {title} 😔</p>;
+
+            const total = data.reduce((sum, entry) => sum + entry.value, 0);
+            let startAngle = 0;
+
+            return (
+                <div className="flex flex-col items-center">
+                    <svg width="100%" height="250" viewBox="0 0 200 200" className="mx-auto">
+                        {data.map((entry, index) => {
+                            const fraction = total > 0 ? entry.value / total : 0;
+                            const percentage = (fraction * 100).toFixed(1);
+                            const handlers = {
+                                fill: COLORS[index % COLORS.length],
+                                onMouseEnter: () => setHoveredEntry({ ...entry, percentage }),
+                                onMouseLeave: () => setHoveredEntry(null),
+                                style: { transition: 'fill 0.2s ease-in-out', cursor: 'pointer' },
+                            };
+
+                            // ส่วนเดียว 100%: จุดเริ่มกับจุดจบของเส้นโค้งทับกัน SVG จะไม่วาด จึงวาดเป็นวงกลมแทน
+                            if (fraction >= 0.9999) {
+                                return <circle key={`pie-slice-${index}`} cx="100" cy="100" r="90" {...handlers} />;
+                            }
+                            if (fraction <= 0) return null;
+
+                            const endAngle = startAngle + fraction * 360;
+                            const largeArcFlag = fraction > 0.5 ? 1 : 0;
+                            const x1 = 100 + 90 * Math.cos(Math.PI * startAngle / 180);
+                            const y1 = 100 + 90 * Math.sin(Math.PI * startAngle / 180);
+                            const x2 = 100 + 90 * Math.cos(Math.PI * endAngle / 180);
+                            const y2 = 100 + 90 * Math.sin(Math.PI * endAngle / 180);
+                            const d = `M 100,100 L ${x1},${y1} A 90,90 0 ${largeArcFlag} 1 ${x2},${y2} Z`;
+                            startAngle = endAngle;
+
+                            return <path key={`pie-slice-${index}`} d={d} {...handlers} />;
+                        })}
+                        {hoveredEntry && (
+                            <>
+                                <text x="100" y="90" textAnchor="middle" alignmentBaseline="middle" fontSize="14" fontWeight="bold" fill="#333">
+                                    {hoveredEntry.name}
+                                </text>
+                                <text x="100" y="115" textAnchor="middle" alignmentBaseline="middle" fontSize="16" fontWeight="bold" fill="#333">
+                                    {`${hoveredEntry.percentage}%`}
+                                </text>
+                            </>
+                        )}
+                    </svg>
+                    <p className="text-center text-sm text-gray-500 mt-2">({title})</p>
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-sm">
+                        {data.map((entry, index) => (
+                            <div key={`legend-${index}`} className="flex items-center">
+                                <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
+                                <span>{`${entry.name} (${entry.value} ครั้ง)`}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
 
         // Modal Component
         const MessageModal = ({ message, type, onClose, show }) => {
@@ -171,7 +322,7 @@
             return (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 modal-overlay-enter">
                     <div ref={modalRef} className={`relative p-6 rounded-xl shadow-2xl max-w-sm w-full border ${borderColor} ${bgColor} text-center modal-content-enter`}>
-                        <p className={`text-lg font-semibold ${textColor} mb-4`}>{message}</p>
+                        <p className={`text-lg font-semibold ${textColor} mb-4 whitespace-pre-line`}>{message}</p>
                         <button
                             onClick={onClose}
                             className="w-full bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors duration-200 shadow-md transform hover:scale-105"
@@ -218,10 +369,9 @@
             const [searchTerm, setSearchTerm] = useState(''); // State for search term in print tab
 
 
-            // Google App Script URL and Sheet/Drive IDs
+            // URL ของ Google Apps Script (Sheet ID / Folder ID กำหนดไว้ใน Code.gs แล้ว)
             const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkmG9Bcaqvk6KQme3cHfDXu-glxaAdJddnQAF7iUalnTui6u_lecdf44t70pOpcqUi-g/exec';
-            const SHEET_ID = '1WRfdixmDVTlxlMzePXtkcWkdPDalo6voXNsp9e1rahs';
-            const DRIVE_FOLDER_ID = '109ZWHZbbWE_8UXPhG3CRk2umN5IvxYIM'; 
+            const messageTimerRef = useRef(null); // timer ของกล่องข้อความ
 
             // Options for dropdowns
             const positions = ['ข้าราชการครู', 'พนักงานราชการ', 'ครูอัตราจ้าง', 'อื่นๆ'];
@@ -242,52 +392,19 @@
                 'รถบรรทุก 6 ล้อ 40-0431': 'text-yellow-700',
             };
 
-            // Function to format date to Thai Buddhist Era (พ.ศ.)
+            // วันที่แบบไทย (th-TH แสดงปี พ.ศ. ให้อัตโนมัติ)
             const formatThaiDate = (dateString) => {
                 if (!dateString) return '';
-                const date = new Date(dateString);
-                // Adjust year for B.E. (add 543 to Gregorian year)
-                return date.toLocaleDateString('th-TH', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                });
+                const ymd = toYMD(dateString);
+                const date = /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? makeLocalDate(ymd) : new Date(dateString);
+                if (!isValidDate(date)) return String(dateString);
+                return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
             };
 
-            // Function to format time to HH.MM น.
+            // เวลาแบบ HH.MM น.
             const formatTime = (timeValue) => {
-                if (!timeValue) return '';
-
-                let timePart = timeValue.toString();
-
-                // If it's a Date object, format it (should be handled by GS formatting, but for robustness)
-                if (timeValue instanceof Date) {
-                    const hours = timeValue.getHours().toString().padStart(2, '0');
-                    const minutes = timeValue.getMinutes().toString().padStart(2, '0');
-                    return `${hours}.${minutes} น.`;
-                }
-                
-                // Handle ISO string format (e.g., "2025-06-29T17:00:00.000Z" or "1899-12-30T01:00:00.000Z")
-                if (timePart.includes('T') && timePart.includes(':')) {
-                    const dateTimeParts = timePart.split('T');
-                    if (dateTimeParts.length > 1) {
-                        const timeStringOnly = dateTimeParts[1];
-                        const [hours, minutes] = timeStringOnly.substring(0, 5).split(':'); // Take HH:MM
-                        if (hours && minutes) {
-                            return `${parseInt(hours, 10).toString().padStart(2, '0')}.${minutes} น.`;
-                        }
-                    }
-                }
-                // Handle HH:MM:SS or HH:MM format (from text-formatted sheet cells)
-                else if (timePart.match(/^\d{1,2}:\d{2}(:\d{2})?$/)) {
-                    const [hours, minutes] = timePart.substring(0, 5).split(':');
-                    if (hours && minutes) {
-                        return `${parseInt(hours, 10).toString().padStart(2, '0')}.${minutes} น.`;
-                    }
-                }
-                
-                // Fallback for unexpected formats
-                return timeValue; // Return original value if cannot format
+                const hhmm = toHHMM(timeValue);
+                return /^\d{2}:\d{2}$/.test(hhmm) ? `${hhmm.replace(':', '.')} น.` : (timeValue || '');
             };
 
             // Fetch *approved* bookings on component mount and when active tab changes to 'schedule' or 'stats'
@@ -319,57 +436,21 @@
                 });
             };
 
-            // Function to fetch *approved* booking data from Google Sheet
+            // ดึงข้อมูลจาก Apps Script แล้วแปลงเป็นรูปแบบที่หน้าเว็บใช้
+            const loadBookings = async (action) => {
+                const response = await fetch(`${SCRIPT_URL}?action=${action}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const result = await response.json();
+                if (result.success === false) throw new Error(result.message || 'server error');
+                return Array.isArray(result.data) ? result.data.map(normalizeBooking) : [];
+            };
+
+            // การจองที่ *อนุมัติแล้ว* (ตาราง/สถิติ) — ตัดแถวที่วันที่อ่านไม่ได้ออก
             const fetchBookings = async () => {
                 setIsLoading(true);
                 try {
-                    // This default call will now be handled by 'getAllBookings' action in GAS
-                    const response = await fetch(`${SCRIPT_URL}?action=getAllBookings&sheetId=${SHEET_ID}`);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const data = await response.json();
-                    if (data && Array.isArray(data.data)) {
-                        // Map data to a more usable format and parse dates
-                        const formattedData = data.data.map(row => {
-                            // Ensure date strings are valid for Date constructor
-                            const startDate = new Date(row['วันที่เริ่ม']);
-                            const endDate = new Date(row['วันที่สิ้นสุด']);
-                            
-                            // For startDateTime and endDateTime, ensure time part is HH:MM for correct parsing by new Date()
-                            // GS should return HH:MM strings, but adding a fallback parse here for robustness
-                            let startTimeFormatted = row['เวลาเริ่มต้น'];
-                            if (startTimeFormatted instanceof Date) {
-                                startTimeFormatted = `${startTimeFormatted.getHours().toString().padStart(2, '0')}:${startTimeFormatted.getMinutes().toString().padStart(2, '0')}`;
-                            } else if (typeof startTimeFormatted === 'string' && startTimeFormatted.includes('T')) {
-                                startTimeFormatted = startTimeFormatted.split('T')[1].substring(0,5);
-                            } else if (typeof startTimeFormatted === 'string' && startTimeFormatted.length > 5 && startTimeFormatted.indexOf(':') === 2) {
-                                startTimeFormatted = startTimeFormatted.substring(0, 5);
-                            }
-
-                            let endTimeFormatted = row['เวลาสิ้นสุด'];
-                            if (endTimeFormatted instanceof Date) {
-                                endTimeFormatted = `${endTimeFormatted.getHours().toString().padStart(2, '0')}:${endTimeFormatted.getMinutes().toString().padStart(2, '0')}`;
-                            } else if (typeof endTimeFormatted === 'string' && endTimeFormatted.includes('T')) {
-                                endTimeFormatted = endTimeFormatted.split('T')[1].substring(0,5);
-                            } else if (typeof endTimeFormatted === 'string' && endTimeFormatted.length > 5 && endTimeFormatted.indexOf(':') === 2) {
-                                endTimeFormatted = endTimeFormatted.substring(0, 5);
-                            }
-
-
-                            return {
-                                ...row,
-                                startDateObj: startDate,
-                                endDateObj: endDate,
-                                // Combine date and formatted time for full timestamp objects for easier comparison
-                                startDateTime: new Date(`${row['วันที่เริ่ม']}T${startTimeFormatted}`),
-                                endDateTime: new Date(`${row['วันที่สิ้นสุด']}T${endTimeFormatted}`),
-                            };
-                        });
-                        setBookings(formattedData); // This state now holds *approved* bookings
-                    } else {
-                        setBookings([]);
-                    }
+                    const data = await loadBookings('getAllBookings');
+                    setBookings(data.filter(b => isValidDate(b.startDateObj) && isValidDate(b.endDateObj)));
                 } catch (error) {
                     console.error('Error fetching bookings:', error);
                     showMessage('เกิดข้อผิดพลาดในการดึงข้อมูลการจอง 😥', 'error');
@@ -378,52 +459,11 @@
                 }
             };
 
-            // --- NEW: Function to fetch *all* booking data for Print tab ---
+            // การจอง *ทั้งหมด* สำหรับแท็บพิมพ์
             const fetchBookingsForPrint = async () => {
                 setIsLoading(true);
                 try {
-                    // Call the new action 'getAllBookingsForPrint'
-                    const response = await fetch(`${SCRIPT_URL}?action=getAllBookingsForPrint&sheetId=${SHEET_ID}`);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const data = await response.json();
-                    if (data && Array.isArray(data.data)) {
-                        // Map data just like in fetchBookings
-                        const formattedData = data.data.map(row => {
-                            const startDate = new Date(row['วันที่เริ่ม']);
-                            const endDate = new Date(row['วันที่สิ้นสุด']);
-                            
-                            let startTimeFormatted = row['เวลาเริ่มต้น'];
-                            if (startTimeFormatted instanceof Date) {
-                                startTimeFormatted = `${startTimeFormatted.getHours().toString().padStart(2, '0')}:${startTimeFormatted.getMinutes().toString().padStart(2, '0')}`;
-                            } else if (typeof startTimeFormatted === 'string' && startTimeFormatted.includes('T')) {
-                                startTimeFormatted = startTimeFormatted.split('T')[1].substring(0,5);
-                            } else if (typeof startTimeFormatted === 'string' && startTimeFormatted.length > 5 && startTimeFormatted.indexOf(':') === 2) {
-                                startTimeFormatted = startTimeFormatted.substring(0, 5);
-                            }
-
-                            let endTimeFormatted = row['เวลาสิ้นสุด'];
-                            if (endTimeFormatted instanceof Date) {
-                                endTimeFormatted = `${endTimeFormatted.getHours().toString().padStart(2, '0')}:${endTimeFormatted.getMinutes().toString().padStart(2, '0')}`;
-                            } else if (typeof endTimeFormatted === 'string' && endTimeFormatted.includes('T')) {
-                                endTimeFormatted = endTimeFormatted.split('T')[1].substring(0,5);
-                            } else if (typeof endTimeFormatted === 'string' && endTimeFormatted.length > 5 && endTimeFormatted.indexOf(':') === 2) {
-                                endTimeFormatted = endTimeFormatted.substring(0, 5);
-                            }
-
-                            return {
-                                ...row,
-                                startDateObj: startDate,
-                                endDateObj: endDate,
-                                startDateTime: new Date(`${row['วันที่เริ่ม']}T${startTimeFormatted}`),
-                                endDateTime: new Date(`${row['วันที่สิ้นสุด']}T${endTimeFormatted}`),
-                            };
-                        });
-                        setAllBookingsForPrint(formattedData); // Set the new state
-                    } else {
-                        setAllBookingsForPrint([]);
-                    }
+                    setAllBookingsForPrint(await loadBookings('getAllBookingsForPrint'));
                 } catch (error) {
                     console.error('Error fetching all bookings for print:', error);
                     showMessage('เกิดข้อผิดพลาดในการดึงข้อมูลสำหรับพิมพ์ 😥', 'error');
@@ -443,138 +483,154 @@
             };
 
             // Show a message to the user for a short period in a modal
-            const showMessage = (msg, type) => {
+            const showMessage = (msg, type, durationMs = 5000) => {
+                clearTimeout(messageTimerRef.current); // ยกเลิก timer ของข้อความก่อนหน้า
                 setMessage(msg);
                 setMessageType(type);
-                setShowModal(true); // Show the modal
-                setTimeout(() => {
-                    setShowModal(false); // Hide the modal after 5 seconds
+                setShowModal(true);
+                messageTimerRef.current = setTimeout(() => {
+                    setShowModal(false);
                     setMessage('');
                     setMessageType('');
-                }, 5000); // Message disappears after 5 seconds
+                }, durationMs);
             };
 
             // Handle modal close action
             const handleCloseModal = () => {
+                clearTimeout(messageTimerRef.current);
                 setShowModal(false);
                 setMessage('');
                 setMessageType('');
             };
 
-            // Handle form submission
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                setIsLoading(true);
-                // Clear any existing message state before new submission
-                setMessage('');
-                setMessageType('');
-                setShowModal(false);
+            const EMPTY_FORM = {
+                fullName: '',
+                position: 'ข้าราชการครู',
+                phoneNumber: '',
+                department: 'วิชาการ',
+                carType: 'รถตู้ใหม่ นจ1491',
+                startDate: '',
+                startTime: '',
+                endDate: '',
+                endTime: '',
+                numTeachers: '',
+                numStudents: '',
+                distance: '',
+                driverOption: 'พนักงานขับรถ',
+                destination: '',
+                attachment: null,
+            };
 
-                // Form validation for all required fields
+            // อ่านไฟล์เป็น base64 (reject เมื่ออ่านไม่สำเร็จ เพื่อไม่ให้หน้าจอโหลดค้าง)
+            const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => resolve(String(event.target.result).split(',')[1] || '');
+                reader.onerror = () => reject(reader.error || new Error('อ่านไฟล์ไม่สำเร็จ'));
+                reader.readAsDataURL(file);
+            });
+
+            // ตรวจข้อมูลฟอร์ม คืนข้อความผิดพลาด หรือ null ถ้าผ่าน
+            const validateForm = () => {
                 const requiredFields = [
                     'fullName', 'position', 'phoneNumber', 'department', 'carType',
                     'startDate', 'startTime', 'endDate', 'endTime', 'numTeachers',
                     'numStudents', 'distance', 'driverOption', 'destination'
                 ];
-
-                for (const field of requiredFields) {
-                    if (formData[field] === '') {
-                        showMessage('กรุณากรอกข้อมูลให้ครบถ้วนก่อนส่ง ⚠️', 'error');
-                        setIsLoading(false);
-                        return;
-                    }
+                if (requiredFields.some(field => String(formData[field] ?? '').trim() === '')) {
+                    return 'กรุณากรอกข้อมูลให้ครบถ้วนก่อนส่ง ⚠️';
                 }
-
-                // **NEW VALIDATION: Check for attachment**
+                if (!/^[0-9+\-\s]{6,20}$/.test(formData.phoneNumber.trim())) {
+                    return 'รูปแบบเบอร์โทรไม่ถูกต้อง 📞';
+                }
+                const teachers = Number(formData.numTeachers);
+                const students = Number(formData.numStudents);
+                if (!Number.isInteger(teachers) || !Number.isInteger(students) || teachers < 0 || students < 0) {
+                    return 'จำนวนครูและนักเรียนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป ⚠️';
+                }
+                if (teachers + students < 1) {
+                    return 'ต้องมีผู้เดินทางอย่างน้อย 1 คน 🧑‍🏫';
+                }
+                if (Number(formData.distance) < 0) {
+                    return 'ระยะทางไม่ถูกต้อง 🛣️';
+                }
                 if (!formData.attachment) {
-                    showMessage('กรุณาแนบเอกสารประกอบก่อนส่งคำขอ 📎⚠️', 'error');
-                    setIsLoading(false);
-                    return;
+                    return 'กรุณาแนบเอกสารประกอบก่อนส่งคำขอ 📎⚠️';
                 }
-
-                // Date/Time validation
-                const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`);
-                const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
-
+                if (formData.attachment.size > MAX_FILE_BYTES) {
+                    return 'ไฟล์แนบต้องมีขนาดไม่เกิน 10 MB 📎';
+                }
+                const startDateTime = makeLocalDate(formData.startDate, formData.startTime);
+                const endDateTime = makeLocalDate(formData.endDate, formData.endTime);
+                if (!isValidDate(startDateTime) || !isValidDate(endDateTime)) {
+                    return 'รูปแบบวันที่หรือเวลาไม่ถูกต้อง 🗓️';
+                }
                 if (startDateTime >= endDateTime) {
-                    showMessage('วันที่และเวลาสิ้นสุดต้องอยู่หลังวันที่และเวลาเริ่มต้น 🗓️⏰', 'error');
-                    setIsLoading(false);
-                    return;
+                    return 'วันที่และเวลาสิ้นสุดต้องอยู่หลังวันที่และเวลาเริ่มต้น 🗓️⏰';
                 }
                 if (startDateTime < new Date()) {
-                    showMessage('วันที่และเวลาเริ่มต้นต้องไม่เป็นอดีต ⏳', 'error');
-                    setIsLoading(false);
+                    return 'วันที่และเวลาเริ่มต้นต้องไม่เป็นอดีต ⏳';
+                }
+                return null;
+            };
+
+            // Handle form submission
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (isLoading) return;
+
+                const error = validateForm();
+                if (error) {
+                    showMessage(error, 'error');
                     return;
                 }
 
-                const dataToSend = new FormData();
-                dataToSend.append('action', 'addBooking');
-                dataToSend.append('sheetId', SHEET_ID);
-                dataToSend.append('folderId', DRIVE_FOLDER_ID); // Google Drive folder ID
-
-                // Append all form data fields
-                for (const key in formData) {
-                    if (key !== 'attachment') {
-                        dataToSend.append(key, formData[key]);
+                setIsLoading(true);
+                try {
+                    const dataToSend = new FormData();
+                    dataToSend.append('action', 'addBooking');
+                    for (const key in formData) {
+                        if (key !== 'attachment') {
+                            dataToSend.append(key, String(formData[key]).trim());
+                        }
                     }
-                }
 
-                // Handle file upload (already validated as present)
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    const base64Data = event.target.result.split(',')[1]; // Get base64 string
+                    let base64Data;
+                    try {
+                        base64Data = await readFileAsBase64(formData.attachment);
+                    } catch (readError) {
+                        console.error('Error reading file:', readError);
+                        showMessage('อ่านไฟล์แนบไม่สำเร็จ กรุณาเลือกไฟล์ใหม่ 📎', 'error');
+                        return;
+                    }
                     dataToSend.append('attachmentData', base64Data);
                     dataToSend.append('attachmentName', formData.attachment.name);
+                    dataToSend.append('attachmentMimeType', formData.attachment.type || '');
 
-                    try {
-                        // Send data to Google App Script
-                        const response = await fetch(SCRIPT_URL, {
-                            method: 'POST',
-                            body: dataToSend,
-                        });
-
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-
-                        const result = await response.json();
-                        if (result.success) {
-                            showMessage('การจองรถสำเร็จ! ✅', 'success');
-                            // Clear form after successful submission
-                            setFormData({
-                                fullName: '',
-                                position: 'ข้าราชการครู',
-                                phoneNumber: '',
-                                department: 'วิชาการ',
-                                carType: 'รถตู้ใหม่ นจ1491',
-                                startDate: '',
-                                startTime: '',
-                                endDate: '',
-                                endTime: '',
-                                numTeachers: '',
-                                numStudents: '',
-                                distance: '',
-                                driverOption: 'พนักงานขับรถ',
-                                destination: '',
-                                attachment: null,
-                            });
-                            if (fileInputRef.current) {
-                                fileInputRef.current.value = ''; // Clear file input
-                            }
-                            // No need to call fetchBookings() here,
-                            // as the new item is not approved yet and won't show anyway.
-                            // fetchBookings(); 
-                        } else {
-                            showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error submitting form:', error);
-                        showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล 🤯', 'error');
-                    } finally {
-                        setIsLoading(false);
+                    const response = await fetch(SCRIPT_URL, { method: 'POST', body: dataToSend });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                };
-                reader.readAsDataURL(formData.attachment); // Read file as base64
+                    const result = await response.json();
+
+                    if (result.success) {
+                        if (result.warning) {
+                            showMessage(`ส่งคำขอสำเร็จ ✅\n${result.warning}`, 'success', 10000);
+                        } else {
+                            showMessage('ส่งคำขอจองรถสำเร็จ รอการอนุมัติ ✅', 'success');
+                        }
+                        setFormData(EMPTY_FORM);
+                        if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                        }
+                    } else {
+                        showMessage(`การจองรถล้มเหลว: ${result.message} 🚫`, 'error', 8000);
+                    }
+                } catch (submitError) {
+                    console.error('Error submitting form:', submitError);
+                    showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล 🤯', 'error');
+                } finally {
+                    setIsLoading(false);
+                }
             };
 
             // Calendar logic
@@ -601,24 +657,36 @@
                 return days;
             };
 
+            // เลื่อนเดือน (ไม่เรียก setState ซ้อนใน updater ของอีกตัว)
             const handlePrevMonth = () => {
-                setCurrentMonth(prevMonth => {
-                    if (prevMonth === 0) {
-                        setCurrentYear(prevYear => prevYear - 1);
-                        return 11;
-                    }
-                    return prevMonth - 1;
-                });
+                if (currentMonth === 0) {
+                    setCurrentMonth(11);
+                    setCurrentYear(currentYear - 1);
+                } else {
+                    setCurrentMonth(currentMonth - 1);
+                }
             };
 
             const handleNextMonth = () => {
-                setCurrentMonth(prevMonth => {
-                    if (prevMonth === 11) {
-                        setCurrentYear(prevYear => prevYear + 1);
-                        return 0;
-                    }
-                    return prevMonth - 1;
-                });
+                if (currentMonth === 11) {
+                    setCurrentMonth(0);
+                    setCurrentYear(currentYear + 1);
+                } else {
+                    setCurrentMonth(currentMonth + 1); // เดิมเป็น - 1 ทำให้ปุ่มถัดไปย้อนกลับ
+                }
+            };
+
+            // การจองของรถคันหนึ่งที่มีวันใช้รถคาบเกี่ยวกับเดือนที่แสดง (รวมการจองข้ามเดือน)
+            const getCarBookingsForMonth = (carType) => {
+                const monthStart = new Date(currentYear, currentMonth, 1);
+                const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+                return bookings
+                    .filter(booking =>
+                        booking['รถที่ต้องการใช้'] === carType &&
+                        booking.startDateObj <= monthEnd &&
+                        booking.endDateObj >= monthStart
+                    )
+                    .sort((a, b) => a.startDateTime - b.startDateTime);
             };
 
             // Get bookings for a specific day (used for highlighting in calendar)
@@ -713,132 +781,16 @@
                 window.print();
             };
 
-            // Updated COLORS array for more vibrant and distinct colors
-            const COLORS = ['#60A5FA', '#34D399', '#FCD34D', '#A78BFA', '#F87171', '#5EEAD4', '#FB923C', '#E879F9']; // Shades of blue, green, yellow, purple, coral, teal, orange, pink
-
-            // Simple SVG Bar Chart Component
-            const SimpleBarChart = ({ data, dataKey, valueKey, title }) => {
-                if (!data || data.length === 0) return <p className="text-gray-600 text-center">ไม่มีข้อมูล {title} 😔</p>;
-
-                const maxValue = Math.max(...data.map(d => d[valueKey]));
-                const barWidth = 30;
-                const gap = 10;
-                // Adjust chartWidth to accommodate potential longer labels and more bars, adding some padding
-                const chartWidth = data.length * (barWidth + gap) + 100;
-                const chartHeight = 200;
-                const scaleY = chartHeight / (maxValue > 0 ? maxValue : 1);
-
-                return (
-                    <div className="flex flex-col items-center overflow-x-auto w-full"> {/* Added overflow-x-auto */}
-                        <svg width="100%" height={chartHeight + 50} viewBox={`0 0 ${chartWidth} ${chartHeight + 50}`} preserveAspectRatio="xMinYMin meet">
-                            {/* Y-axis */}
-                            <line x1="50" y1="0" x2="50" y2={chartHeight} stroke="#333" />
-                            {/* X-axis */}
-                            <line x1="50" y1={chartHeight} x2={chartWidth - 50} y2={chartHeight} stroke="#333" />
-
-                            {/* Bars and X-axis labels */}
-                            {data.map((d, i) => {
-                                const x = 50 + i * (barWidth + gap);
-                                const barHeight = d[valueKey] * scaleY;
-                                const y = chartHeight - barHeight;
-                                return (
-                                    <React.Fragment key={i}>
-                                        <rect x={x} y={y} width={barWidth} height={barHeight} fill={COLORS[i % COLORS.length]} rx="5" ry="5" />
-                                        <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fontSize="12" fill="#333">
-                                            {d[valueKey]}
-                                        </text>
-                                    </React.Fragment>
-                                );
-                            })}
-                        </svg>
-                        <p className="text-center text-sm text-gray-500 mt-2">({title})</p>
-                         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-sm">
-                            {data.map((entry, index) => (
-                                <div key={`legend-${index}`} className="flex items-center">
-                                    <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
-                                    <span>{`${entry[dataKey]} (${entry[valueKey]} ครั้ง)`}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                );
-            };
-
-            // Simple SVG Pie Chart Component
-            const SimplePieChart = ({ data, title }) => {
-                if (!data || data.length === 0) return <p className="text-gray-600 text-center">ไม่มีข้อมูล {title} 😔</p>;
-
-                const total = data.reduce((sum, entry) => sum + entry.value, 0);
-                let startAngle = 0;
-                const [hoveredEntry, setHoveredEntry] = useState(null); // State to track hovered entry
-
-                return (
-                    <div className="flex flex-col items-center">
-                        <svg width="100%" height="250" viewBox="0 0 200 200" className="mx-auto">
-                            {data.map((entry, index) => {
-                                const endAngle = startAngle + (entry.value / total) * 360;
-                                const largeArcFlag = entry.value / total > 0.5 ? 1 : 0;
-
-                                const x1 = 100 + 90 * Math.cos(Math.PI * startAngle / 180);
-                                const y1 = 100 + 90 * Math.sin(Math.PI * startAngle / 180);
-                                const x2 = 100 + 90 * Math.cos(Math.PI * endAngle / 180);
-                                const y2 = 100 + 90 * Math.sin(Math.PI * endAngle / 180);
-
-                                // Calculate the midpoint of the arc for label positioning
-                                const midAngle = startAngle + (endAngle - startAngle) / 2;
-                                const labelX = 100 + 70 * Math.cos(Math.PI * midAngle / 180);
-                                const labelY = 100 + 70 * Math.sin(Math.PI * midAngle / 180);
-
-                                const d = [
-                                    `M 100,100`,
-                                    `L ${x1},${y1}`,
-                                    `A 90,90 0 ${largeArcFlag} 1 ${x2},${y2}`,
-                                    `Z`
-                                ].join(' ');
-
-                                startAngle = endAngle;
-
-                                // Calculate percentage for the hovered slice
-                                const percentage = total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0;
-                                
-                                return (
-                                    <React.Fragment key={`pie-slice-${index}`}>
-                                        <path
-                                            d={d}
-                                            fill={COLORS[index % COLORS.length]}
-                                            onMouseEnter={() => setHoveredEntry({ ...entry, percentage: percentage })}
-                                            onMouseLeave={() => setHoveredEntry(null)}
-                                            style={{ transition: 'fill 0.2s ease-in-out', cursor: 'pointer' }}
-                                        />
-                                    </React.Fragment>
-                                );
-                            })}
-                             {/* Display hovered name and percentage in the center */}
-                            {hoveredEntry && (
-                                <text x="100" y="90" textAnchor="middle" alignmentBaseline="middle" fontSize="14" fontWeight="bold" fill="#333">
-                                    {hoveredEntry.name}
-                                </text>
-                            )}
-                            {hoveredEntry && (
-                                <text x="100" y="115" textAnchor="middle" alignmentBaseline="middle" fontSize="16" fontWeight="bold" fill="#333">
-                                    {`${hoveredEntry.percentage}%`}
-                                </text>
-                            )}
-                        </svg>
-                        <p className="text-center text-sm text-gray-500 mt-2">({title})</p>
-                        {/* Legend below the chart */}
-                        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-sm">
-                            {data.map((entry, index) => (
-                                <div key={`legend-${index}`} className="flex items-center">
-                                    <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
-                                    <span>{`${entry.name} (${entry.value} ครั้ง)`}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                );
-            };
-
+            // รายการในแท็บพิมพ์: กรองตามชื่อ แล้วเรียงรายการใหม่สุดขึ้นก่อน
+            const filteredPrintBookings = allBookingsForPrint
+                .filter(booking =>
+                    booking['ชื่อ-สกุล ผู้จอง'].toLowerCase().includes(searchTerm.trim().toLowerCase())
+                )
+                .sort((a, b) => {
+                    const ta = isValidDate(a.createdAt) ? a.createdAt.getTime() : 0;
+                    const tb = isValidDate(b.createdAt) ? b.createdAt.getTime() : 0;
+                    return tb - ta;
+                });
 
             return (
                 <div className="min-h-screen bg-pink-50 font-sarabun text-gray-800 flex flex-col items-center p-4 sm:p-6 transition-all duration-300 ease-in-out animate-fade-in">
@@ -1045,8 +997,6 @@
                                             value={formData.startTime}
                                             onChange={handleChange}
                                             className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                                            pattern="^([01]\d|2[0-3]):([0-5]\d)$" // Enforce HH:MM format
-                                            title="กรุณากรอกเวลาในรูปแบบ HH:MM (เช่น 08:30)"
                                             required
                                         />
                                     </div>
@@ -1071,8 +1021,6 @@
                                             value={formData.endTime}
                                             onChange={handleChange}
                                             className="w-full p-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 outline-none transition-all duration-200"
-                                            pattern="^([01]\d|2[0-3]):([0-5]\d)$" // Enforce HH:MM format
-                                            title="กรุณากรอกเวลาในรูปแบบ HH:MM (เช่น 17:00)"
                                             required
                                         />
                                     </div>
@@ -1209,7 +1157,7 @@
                                                 key={index}
                                                 className={`p-2 h-20 rounded-lg flex flex-col items-center justify-center transition-all duration-200 cursor-pointer calendar-day-hover
                                                   ${day ? 'bg-red-50 text-red-800 shadow-sm' : 'bg-gray-50 text-gray-400'}
-                                                  ${isBooked ? 'bg-red-200 font-bold border-2 border-red-400 animate-pulse-fade' : ''}
+                                                  ${isBooked ? 'bg-red-200 font-bold border-2 border-red-400' : ''}
                                                 `}
                                                 onClick={() => handleDayClick(day)} // Re-added onClick event for day to show popup
                                             >
@@ -1291,13 +1239,7 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-blue-100">
-                                                        {/* Filter bookings for current carType and current month/year */}
-                                                        {bookings.filter(booking => 
-                                                            booking['รถที่ต้องการใช้'] === carType &&
-                                                            booking.startDateObj.getMonth() === currentMonth &&
-                                                            booking.startDateObj.getFullYear() === currentYear
-                                                        ).sort((a,b) => a.startDateTime - b.startDateTime) // Sort by start time for better readability
-                                                        .map((booking, idx) => (
+                                                        {getCarBookingsForMonth(carType).map((booking, idx) => (
                                                             <tr key={idx} className="hover:bg-blue-50 transition-colors duration-150">
                                                                 <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatThaiDate(booking['วันที่เริ่ม'])}</td>
                                                                 <td className="py-3 px-4 whitespace-nowrap text-gray-700">{formatTime(booking['เวลาเริ่มต้น'])}</td>
@@ -1307,11 +1249,7 @@
                                                                 <td className="py-3 px-4 text-gray-700">{booking['สถานที่ไป']}</td>
                                                             </tr>
                                                         ))}
-                                                        {bookings.filter(booking => 
-                                                            booking['รถที่ต้องการใช้'] === carType &&
-                                                            booking.startDateObj.getMonth() === currentMonth &&
-                                                            booking.startDateObj.getFullYear() === currentYear
-                                                        ).length === 0 && (
+                                                        {getCarBookingsForMonth(carType).length === 0 && (
                                                             <tr>
                                                                 <td colSpan="6" className="py-4 text-center text-gray-500">ไม่มีการจองสำหรับรถคันนี้ในเดือนนี้ 😴</td>
                                                             </tr>
@@ -1423,15 +1361,7 @@
                                             </thead>
                                             <tbody className="divide-y divide-red-100">
                                                 {/* --- MODIFIED: Filter and map allBookingsForPrint --- */}
-                                                {[...allBookingsForPrint]
-                                                    .filter(booking => 
-                                                        booking['ชื่อ-สกุล ผู้จอง'].toLowerCase().includes(searchTerm.toLowerCase())
-                                                    )
-                                                    .sort((a, b) => {
-                                                        const dateA = new Date(a['วันที่สร้างรายการ']);
-                                                        const dateB = new Date(b['วันที่สร้างรายการ']);
-                                                        return dateB.getTime() - dateA.getTime();
-                                                    })
+                                                {filteredPrintBookings
                                                     .map((booking, index) => (
                                                     <tr key={index} className="hover:bg-red-50 transition-colors duration-150">
                                                         <td className="py-3 px-4 whitespace-nowrap text-gray-700">{booking['ชื่อ-สกุล ผู้จอง']}</td>
@@ -1456,9 +1386,7 @@
                                                     </tr>
                                                 ))}
                                                 {/* --- MODIFIED: Check filtered allBookingsForPrint length --- */}
-                                                {allBookingsForPrint.filter(booking => 
-                                                    booking['ชื่อ-สกุล ผู้จอง'].toLowerCase().includes(searchTerm.toLowerCase())
-                                                ).length === 0 && (
+                                                {filteredPrintBookings.length === 0 && (
                                                     <tr>
                                                         <td colSpan="5" className="py-4 text-center text-gray-500">ไม่พบข้อมูลการจองที่ตรงกับคำค้นหา 🙁</td>
                                                     </tr>
